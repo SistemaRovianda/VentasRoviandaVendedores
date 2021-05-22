@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/loginView">
+    <fragment
+        android:id="@+id/loginView"
+        android:name="com.example.ventasrovianda.login.view.LoginView"
+        android:label="LoginView"
+        tools:layout="@layout/loginfragment">
+        <action
+            android:id="@+id/action_loginView_to_homeView"
+            app:destination="@id/homeView"
+            app:enterAnim="@anim/nav_default_enter_anim"
+            app:exitAnim="@anim/nav_default_exit_anim"
+            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+    </fragment>
+    <fragment
+        android:id="@+id/homeView"
+        android:name="com.example.ventasrovianda.home.view.HomeView"
+        android:label="HomeView"
+        tools:layout="@layout/home">
+        <action
+            android:id="@+id/action_homeView_to_cotizacionesView"
+            app:destination="@id/visitsView" />
+        <action
+            android:id="@+id/action_homeView_to_clientView"
+            app:destination="@id/clientView" />
+        <action
+            android:id="@+id/action_homeView_to_pedidoView"
+            app:destination="@id/pedidoView" />
+        <action
+            android:id="@+id/action_homeView_to_loginView"
+            app:destination="@id/loginView" />
+        <argument
+            android:name="clientInVisit"
+            app:argType="com.example.ventasrovianda.Utils.Models.ClientDTO"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <action
+            android:id="@+id/action_homeView_to_salesView"
+            app:destination="@id/salesView" />
+        <argument
+            android:name="PrinterDevice"
+            app:argType="com.example.ventasrovianda.Utils.Models.BluetoothDeviceSerializable"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="userName"
+            app:argType="string" />
+    </fragment>
+    <fragment
+        android:id="@+id/visitsView"
+        android:name="com.example.ventasrovianda.cotizaciones.view.VisitsView"
+        android:label="CotizacionesView"
+        tools:layout="@layout/visits_layout">
+        <action
+            android:id="@+id/action_cotizacionesView_to_homeView"
+            app:destination="@id/homeView" />
+        <action
+            android:id="@+id/action_cotizacionesView_to_clientView"
+            app:destination="@id/clientView" />
+        <action
+            android:id="@+id/action_cotizacionesView_to_pedidoView"
+            app:destination="@id/pedidoView" />
+        <action
+            android:id="@+id/action_cotizacionesView_to_loginView"
+            app:destination="@id/loginView" />
+        <argument
+            android:name="clientInVisit"
+            app:argType="com.example.ventasrovianda.Utils.Models.ClientDTO"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <action
+            android:id="@+id/action_visitsView_to_salesView"
+            app:destination="@id/salesView" />
+        <argument
+            android:name="PrinterDevice"
+            app:argType="com.example.ventasrovianda.Utils.Models.BluetoothDeviceSerializable"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="userName"
+            app:argType="string" />
+    </fragment>
+    <fragment
+        android:id="@+id/clientView"
+        android:name="com.example.ventasrovianda.clients.view.ClientView"
+        android:label="ClientView"
+        tools:layout="@layout/user_register_layout">
+        <action
+            android:id="@+id/action_clientView_to_cotizacionesView"
+            app:destination="@id/visitsView" />
+        <action
+            android:id="@+id/action_clientView_to_homeView"
+            app:destination="@id/homeView" />
+        <action
+            android:id="@+id/action_clientView_to_pedidoView"
+            app:destination="@id/pedidoView" />
+        <action
+            android:id="@+id/action_clientView_to_loginView"
+            app:destination="@id/loginView" />
+        <action
+            android:id="@+id/action_clientView_to_registerClientView"
+            app:destination="@id/registerClientView"
+            app:enterAnim="@anim/fragment_fade_enter"
+            app:exitAnim="@anim/fragment_fade_exit"
+            app:popEnterAnim="@anim/fragment_open_enter"
+            app:popExitAnim="@anim/fragment_open_exit" />
+        <argument
+            android:name="clientInVisit"
+            app:argType="com.example.ventasrovianda.Utils.Models.ClientDTO"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <action
+            android:id="@+id/action_clientView_to_salesView"
+            app:destination="@id/salesView" />
+        <argument
+            android:name="PrinterDevice"
+            app:argType="com.example.ventasrovianda.Utils.Models.BluetoothDeviceSerializable"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="userName"
+            app:argType="string" />
+    </fragment>
+    <fragment
+        android:id="@+id/pedidoView"
+        android:name="com.example.ventasrovianda.pedidos.view.PedidoView"
+        android:label="PedidoView"
+        tools:layout="@layout/pedidos_layout">
+        <action
+            android:id="@+id/action_pedidoView_to_clientView"
+            app:destination="@id/clientView" />
+        <action
+            android:id="@+id/action_pedidoView_to_cotizacionesView"
+            app:destination="@id/visitsView" />
+        <action
+            android:id="@+id/action_pedidoView_to_homeView"
+            app:destination="@id/homeView" />
+        <action
+            android:id="@+id/action_pedidoView_to_loginView"
+            app:destination="@id/loginView" />
+        <action
+            android:id="@+id/action_pedidoView_to_pedidoForm"
+            app:destination="@id/pedidoForm"
+            app:enterAnim="@anim/fragment_fade_enter"
+            app:exitAnim="@anim/fragment_fade_exit"
+            app:popEnterAnim="@anim/fragment_open_enter"
+            app:popExitAnim="@anim/fragment_open_exit" />
+        <argument
+            android:name="clientInVisit"
+            app:argType="com.example.ventasrovianda.Utils.Models.ClientDTO"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <action
+            android:id="@+id/action_pedidoView_to_salesView"
+            app:destination="@id/salesView" />
+        <argument
+            android:name="PrinterDevice"
+            app:argType="com.example.ventasrovianda.Utils.Models.BluetoothDeviceSerializable"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="userName"
+            app:argType="string" />
+        <action
+            android:id="@+id/action_pedidoView_to_pedidoDetails"
+            app:destination="@id/pedidoDetails"
+            app:enterAnim="@anim/fragment_open_enter"
+            app:exitAnim="@anim/fragment_open_exit"
+            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+            app:popExitAnim="@animator/nav_default_pop_exit_anim" />
+    </fragment>
+    <fragment
+        android:id="@+id/registerClientView"
+        android:name="com.example.ventasrovianda.clients.view.RegisterClientView"
+        android:label="RegisterClientView"
+        tools:layout="@layout/user_register_form">
+        <action
+            android:id="@+id/action_registerClientView_to_clientView"
+            app:destination="@id/clientView"
+            app:enterAnim="@anim/fragment_fade_enter"
+            app:exitAnim="@anim/fragment_fade_exit"
+            app:popEnterAnim="@anim/fragment_open_enter"
+            app:popExitAnim="@anim/fragment_open_exit" />
+        <argument
+            android:name="clientInVisit"
+            app:argType="com.example.ventasrovianda.Utils.Models.ClientDTO"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="PrinterDevice"
+            app:argType="com.example.ventasrovianda.Utils.Models.BluetoothDeviceSerializable"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="userName"
+            app:argType="string" />
+    </fragment>
+    <fragment
+        android:id="@+id/pedidoForm"
+        android:name="com.example.ventasrovianda.pedidos.view.PedidoForm"
+        android:label="PedidoForm"
+        tools:layout="@layout/pedido_form">
+        <action
+            android:id="@+id/action_pedidoForm_to_pedidoView"
+            app:destination="@id/pedidoView"
+            app:enterAnim="@anim/fragment_fade_enter"
+            app:exitAnim="@anim/fragment_fade_exit"
+            app:popEnterAnim="@anim/fragment_open_enter"
+            app:popExitAnim="@anim/fragment_open_exit" />
+        <argument
+            android:name="clientInVisit"
+            app:argType="com.example.ventasrovianda.Utils.Models.ClientDTO"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="PrinterDevice"
+            app:argType="com.example.ventasrovianda.Utils.Models.BluetoothDeviceSerializable"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="userName"
+            app:argType="string" />
+    </fragment>
+    <fragment
+        android:id="@+id/salesView"
+        android:name="com.example.ventasrovianda.sales.view.SalesView"
+        android:label="SalesView"
+        tools:layout="@layout/sales_list">
+        <action
+            android:id="@+id/action_salesView_to_homeView"
+            app:destination="@id/homeView" />
+        <action
+            android:id="@+id/action_salesView_to_clientView"
+            app:destination="@id/clientView" />
+        <action
+            android:id="@+id/action_salesView_to_visitsView"
+            app:destination="@id/visitsView" />
+        <action
+            android:id="@+id/action_salesView_to_pedidoView"
+            app:destination="@id/pedidoView" />
+        <argument
+            android:name="clientInVisit"
+            app:argType="com.example.ventasrovianda.Utils.Models.ClientDTO"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="PrinterDevice"
+            app:argType="com.example.ventasrovianda.Utils.Models.BluetoothDeviceSerializable"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <action
+            android:id="@+id/action_salesView_to_loginView"
+            app:destination="@id/loginView" />
+        <argument
+            android:name="userName"
+            app:argType="string" />
+    </fragment>
+    <fragment
+        android:id="@+id/pedidoDetails"
+        android:name="com.example.ventasrovianda.pedidos.view.PedidoDetails"
+        android:label="PedidoDetails"
+        tools:layout="@layout/order_details_edit">
+        <action
+            android:id="@+id/action_pedidoDetails_to_pedidoView"
+            app:destination="@id/pedidoView"
+            app:enterAnim="@anim/nav_default_enter_anim"
+            app:exitAnim="@anim/nav_default_exit_anim"
+            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+        <argument
+            android:name="orderId"
+            app:argType="long" />
+        <argument
+            android:name="clientInVisit"
+            app:argType="com.example.ventasrovianda.Utils.Models.ClientDTO"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="PrinterDevice"
+            app:argType="com.example.ventasrovianda.Utils.Models.BluetoothDeviceSerializable"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="userName"
+            app:argType="string" />
+        <action
+            android:id="@+id/action_pedidoDetails_to_loginView"
+            app:destination="@id/loginView"
+            app:enterAnim="@anim/fragment_open_enter"
+            app:exitAnim="@anim/fragment_open_exit"
+            app:popEnterAnim="@anim/fragment_close_enter"
+            app:popExitAnim="@anim/fragment_close_exit" />
+        <argument
+            android:name="dateOrder"
+            app:argType="string" />
+    </fragment>
+
+</navigation>

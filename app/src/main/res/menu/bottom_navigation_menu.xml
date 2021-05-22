@@ -1,0 +1,34 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/home_section"
+        android:enabled="true"
+        android:icon="@drawable/ventas_ico"
+        android:title="Ventas"
+        android:color="@color/black"
+        android:visible="true" />
+    <item
+        android:id="@+id/visitas_section"
+        android:enabled="true"
+        android:icon="@drawable/pedidos_ico"
+        android:color="@color/black"
+        android:title="Visitas" />
+
+    <item
+        android:id="@+id/cliente_section"
+        android:enabled="true"
+        android:icon="@drawable/cliente_ico"
+        android:color="@color/black"
+        android:title="Clientes"/>
+    <item
+        android:id="@+id/pedidos_section"
+        android:enabled="true"
+        android:icon="@drawable/cesta_ico"
+        android:color="@color/black"
+        android:title="Pedidos"/>
+    <item
+        android:id="@+id/ventas_section"
+        android:enabled="true"
+        android:icon="@drawable/ic_history_sales"
+        android:color="@color/black"
+        android:title="Historial"/>
+</menu>

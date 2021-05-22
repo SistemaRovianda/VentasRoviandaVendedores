@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "907591994739",
+    "firebase_url": "https://sistema-rovianda.firebaseio.com",
+    "project_id": "sistema-rovianda",
+    "storage_bucket": "sistema-rovianda.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:907591994739:android:2c12dc0d93caf426590906",
+        "android_client_info": {
+          "package_name": "com.example.ventasrovianda"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "907591994739-81nhtsgual2ao26a71sdb40697i8qlje.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA_HvYa_ETQwcgepHDkWJ-Wgj_2Z7qpt9E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "907591994739-81nhtsgual2ao26a71sdb40697i8qlje.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
