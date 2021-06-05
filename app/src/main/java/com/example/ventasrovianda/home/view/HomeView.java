@@ -1295,10 +1295,13 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
             Float price = pricesBySku.get(sku);
             Float amount = amountTotal.get(sku);
             Float totalPieces = piecesTotal.get(sku);
+            if(sku.length()>5){
+                sku=sku.substring(sku.length()-5,sku.length());
+            }
             if(totalPieces==null) {
                 ticket += "\n" + sku + " " + productName + "\n" + String.format("%.02f", weight) + " $" + price + " $" + String.format("%.02f", amount);
             }else{
-                ticket += "\n" + sku + " " + productName + "\n"+Integer.parseInt(totalPieces.toString())+ " pz " + String.format("%.02f", weight) + " $" + price + " $" + String.format("%.02f", amount);
+                ticket += "\n" + sku + " " + productName + "\n"+Math.round(totalPieces)+ " pz " + String.format("%.02f", weight) + " $" + price + " $" + String.format("%.02f", amount);
             }
         }
         ticket+="\n-----------------------------------------\nDOC NOMBRE  CLIENTE IMPORTE TIPOVENTA\n-----------------------------------------\n";

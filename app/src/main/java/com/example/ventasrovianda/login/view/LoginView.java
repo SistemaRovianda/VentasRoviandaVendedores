@@ -82,81 +82,48 @@ public class LoginView extends Fragment implements View.OnClickListener,LoginVie
         Calendar calendar = Calendar.getInstance();
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
         String dateParsed = dateFormat.format(calendar.getTime());
+        //System.out.println("Dia de la semana: "+calendar.get(Calendar.DAY_OF_WEEK));
+        //System.out.println("Fecha de busqueda: "+dateParsed);
         if(calendar.get(Calendar.DAY_OF_WEEK)==2) {
             calendar.add(Calendar.DATE, -2);
         }else{
             calendar.add(Calendar.DATE, -1);
         }
         String dateWihoutDay = dateFormat.format(calendar.getTime());
+        //System.out.println("Fecha de busqueda2 : "+dateWihoutDay);
 
         File file = new File(getContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS).toString()+"/offline","offline-"+dateParsed+".rovi");
         File fileAlter = new File(getContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS).toString()+"/offline","offline-"+dateWihoutDay+".rovi");
-        System.out.println("File1Existe:"+file.exists());
-        System.out.println("File2Existe:"+fileAlter.exists());
-        System.out.println("Storage: "+viewModelStore.getStore().getClients()==null);
-        if(file.exists()){
+
+        if(file.exists() && fileAlter.exists()){
                 String data = readFileFromPath(file);
                 ModeOfflineModel modeOfflineData = this.parser.fromJson(data, ModeOfflineModel.class);
-                if(modeOfflineData.getClients()!=null) {
-                    viewModelStore.saveStore(modeOfflineData);
-                }else{
-                    viewModelStore.saveStore(null);
+                String data2 = readFileFromPath(fileAlter);
+                ModeOfflineModel modeOfflineData2 = this.parser.fromJson(data2, ModeOfflineModel.class);
+                if(modeOfflineData.getFolioCount()<modeOfflineData2.getFolioCount()){//el sistema no tiene las ventas del vendedor cargadas
+                    viewModelStore.saveStore(modeOfflineData2);
+                }else{// el sistema ya tiene las ventas del vendedor actualizadas
+                    if(modeOfflineData.getClients()!=null) {
+                        viewModelStore.saveStore(modeOfflineData);
+                    }else{
+                        viewModelStore.saveStore(null);
+                    }
                 }
-        }else if(fileAlter.exists()){
+        }else if(file.exists()){
+            String data = readFileFromPath(file);
+            ModeOfflineModel modeOfflineData = this.parser.fromJson(data, ModeOfflineModel.class);
+            viewModelStore.saveStore(modeOfflineData);
+        } else if(fileAlter.exists()){
             file.delete();
             String data2 = readFileFromPath(fileAlter);
             try {
                 ModeOfflineModel modeOfflineData2 = this.parser.fromJson(data2, ModeOfflineModel.class);
-
-                    viewModelStore.saveStore(modeOfflineData2);
-
-                    Boolean modified = false;
-                    if (modeOfflineData2 != null) {
-                        if (modeOfflineData2.getSalesMaked() != null && modeOfflineData2.getSalesMaked().size() > 0) {
-                            modified = true;
-                        }
-                        if (modeOfflineData2.getDebts() != null) {
-                                    modified = true;
-                        }
-                        if (modeOfflineData2.getSales() != null) {
-                            for (SaleOfflineMode saleOfflineMode : modeOfflineData2.getSales()) {
-                                if (saleOfflineMode.getStatusStr().equals("CANCELED")) {
-                                    modified = true;
-                                }
-                            }
-                        }
-                    }
-                    if (modified) {
-                        if(viewModelStore.getStore().getSales()==null){
-                            viewModelStore.getStore().setSales(new ArrayList<>());
-                        }
-
-                        if(viewModelStore.getStore().getDebts()==null){
-                            viewModelStore.getStore().setDebts(new ArrayList<>());
-                        }
-
-                        if(viewModelStore.getStore().getSalesMaked()==null){
-                            viewModelStore.getStore().setSalesMaked(new ArrayList<>());
-                        }
-                        for (SaleOfflineMode item : modeOfflineData2.getSales()) {
-                            viewModelStore.getStore().getSales().add(item);
-                        }
-                        for (SaleOfflineMode item : modeOfflineData2.getDebts()) {
-                            viewModelStore.getStore().getDebts().add(item);
-                        }
-                        for (SaleDTO sale : modeOfflineData2.getSalesMaked()) {
-                            viewModelStore.getStore().getSalesMaked().add(sale);
-                        }
-                    }
-
+                viewModelStore.saveStore(modeOfflineData2);
             }catch(Exception e){
                 System.out.print("No se pudo leer el archivo secundario");
             }
-        }else{
-            fileAlter.delete();
         }
         if(viewModelStore.getStore()!=null && viewModelStore.getStore().getClients()!=null) {
-
             this.setModeOffline(viewModelStore.getStore());
             String uid = this.presenter.checkLoginStr();
             if (uid != null) {

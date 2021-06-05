@@ -36,7 +36,7 @@ public class PedidoFormPresenter implements PedidoFormPresenterContract{
     private Network network;
     private Gson parser;
     private GsonRequest serviceConsumer;
-    private String url ="https://fe6954c7da75.ngrok.io/sistema-rovianda/us-central1/app";//"https://us-central1-sistema-rovianda.cloudfunctions.net/app";//"https://us-central1-sistema-rovianda.cloudfunctions.net/app";
+    private String url ="https://us-central1-sistema-rovianda.cloudfunctions.net/app";//"https://us-central1-sistema-rovianda.cloudfunctions.net/app";//"https://us-central1-sistema-rovianda.cloudfunctions.net/app";
     private RequestQueue requestQueue;
 
     public PedidoFormPresenter(Context context, PedidoForm view){
