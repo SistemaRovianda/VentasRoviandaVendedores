@@ -6,7 +6,7 @@
     app:startDestination="@id/loginView">
     <fragment
         android:id="@+id/loginView"
-        android:name="com.example.ventasrovianda.login.view.LoginView"
+        android:name="com.example.tiendas.login.view.LoginView"
         android:label="LoginView"
         tools:layout="@layout/loginfragment">
         <action
@@ -16,10 +16,13 @@
             app:exitAnim="@anim/nav_default_exit_anim"
             app:popEnterAnim="@anim/nav_default_pop_enter_anim"
             app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+        <action
+            android:id="@+id/action_loginView_to_pedidoView"
+            app:destination="@id/pedidoView" />
     </fragment>
     <fragment
         android:id="@+id/homeView"
-        android:name="com.example.ventasrovianda.home.view.HomeView"
+        android:name="com.example.tiendas.home.view.HomeView"
         android:label="HomeView"
         tools:layout="@layout/home">
         <action
@@ -36,7 +39,7 @@
             app:destination="@id/loginView" />
         <argument
             android:name="clientInVisit"
-            app:argType="com.example.ventasrovianda.Utils.Models.ClientDTO"
+            app:argType="com.example.tiendas.Utils.Models.ClientDTO"
             app:nullable="true"
             android:defaultValue="@null" />
         <action
@@ -44,7 +47,7 @@
             app:destination="@id/salesView" />
         <argument
             android:name="PrinterDevice"
-            app:argType="com.example.ventasrovianda.Utils.Models.BluetoothDeviceSerializable"
+            app:argType="com.example.tiendas.Utils.Models.BluetoothDeviceSerializable"
             app:nullable="true"
             android:defaultValue="@null" />
         <argument
@@ -53,7 +56,7 @@
     </fragment>
     <fragment
         android:id="@+id/visitsView"
-        android:name="com.example.ventasrovianda.cotizaciones.view.VisitsView"
+        android:name="com.example.tiendas.cotizaciones.view.VisitsView"
         android:label="CotizacionesView"
         tools:layout="@layout/visits_layout">
         <action
@@ -70,7 +73,7 @@
             app:destination="@id/loginView" />
         <argument
             android:name="clientInVisit"
-            app:argType="com.example.ventasrovianda.Utils.Models.ClientDTO"
+            app:argType="com.example.tiendas.Utils.Models.ClientDTO"
             app:nullable="true"
             android:defaultValue="@null" />
         <action
@@ -78,7 +81,7 @@
             app:destination="@id/salesView" />
         <argument
             android:name="PrinterDevice"
-            app:argType="com.example.ventasrovianda.Utils.Models.BluetoothDeviceSerializable"
+            app:argType="com.example.tiendas.Utils.Models.BluetoothDeviceSerializable"
             app:nullable="true"
             android:defaultValue="@null" />
         <argument
@@ -87,7 +90,7 @@
     </fragment>
     <fragment
         android:id="@+id/clientView"
-        android:name="com.example.ventasrovianda.clients.view.ClientView"
+        android:name="com.example.tiendas.clients.view.ClientView"
         android:label="ClientView"
         tools:layout="@layout/user_register_layout">
         <action
@@ -111,7 +114,7 @@
             app:popExitAnim="@anim/fragment_open_exit" />
         <argument
             android:name="clientInVisit"
-            app:argType="com.example.ventasrovianda.Utils.Models.ClientDTO"
+            app:argType="com.example.tiendas.Utils.Models.ClientDTO"
             app:nullable="true"
             android:defaultValue="@null" />
         <action
@@ -119,7 +122,7 @@
             app:destination="@id/salesView" />
         <argument
             android:name="PrinterDevice"
-            app:argType="com.example.ventasrovianda.Utils.Models.BluetoothDeviceSerializable"
+            app:argType="com.example.tiendas.Utils.Models.BluetoothDeviceSerializable"
             app:nullable="true"
             android:defaultValue="@null" />
         <argument
@@ -128,7 +131,7 @@
     </fragment>
     <fragment
         android:id="@+id/pedidoView"
-        android:name="com.example.ventasrovianda.pedidos.view.PedidoView"
+        android:name="com.example.tiendas.pedidos.view.PedidoView"
         android:label="PedidoView"
         tools:layout="@layout/pedidos_layout">
         <action
@@ -152,7 +155,7 @@
             app:popExitAnim="@anim/fragment_open_exit" />
         <argument
             android:name="clientInVisit"
-            app:argType="com.example.ventasrovianda.Utils.Models.ClientDTO"
+            app:argType="com.example.tiendas.Utils.Models.ClientDTO"
             app:nullable="true"
             android:defaultValue="@null" />
         <action
@@ -160,7 +163,7 @@
             app:destination="@id/salesView" />
         <argument
             android:name="PrinterDevice"
-            app:argType="com.example.ventasrovianda.Utils.Models.BluetoothDeviceSerializable"
+            app:argType="com.example.tiendas.Utils.Models.BluetoothDeviceSerializable"
             app:nullable="true"
             android:defaultValue="@null" />
         <argument
@@ -176,7 +179,7 @@
     </fragment>
     <fragment
         android:id="@+id/registerClientView"
-        android:name="com.example.ventasrovianda.clients.view.RegisterClientView"
+        android:name="com.example.tiendas.clients.view.RegisterClientView"
         android:label="RegisterClientView"
         tools:layout="@layout/user_register_form">
         <action
@@ -188,12 +191,12 @@
             app:popExitAnim="@anim/fragment_open_exit" />
         <argument
             android:name="clientInVisit"
-            app:argType="com.example.ventasrovianda.Utils.Models.ClientDTO"
+            app:argType="com.example.tiendas.Utils.Models.ClientDTO"
             app:nullable="true"
             android:defaultValue="@null" />
         <argument
             android:name="PrinterDevice"
-            app:argType="com.example.ventasrovianda.Utils.Models.BluetoothDeviceSerializable"
+            app:argType="com.example.tiendas.Utils.Models.BluetoothDeviceSerializable"
             app:nullable="true"
             android:defaultValue="@null" />
         <argument
@@ -202,7 +205,7 @@
     </fragment>
     <fragment
         android:id="@+id/pedidoForm"
-        android:name="com.example.ventasrovianda.pedidos.view.PedidoForm"
+        android:name="com.example.tiendas.pedidos.view.PedidoForm"
         android:label="PedidoForm"
         tools:layout="@layout/pedido_form">
         <action
@@ -214,12 +217,12 @@
             app:popExitAnim="@anim/fragment_open_exit" />
         <argument
             android:name="clientInVisit"
-            app:argType="com.example.ventasrovianda.Utils.Models.ClientDTO"
+            app:argType="com.example.tiendas.Utils.Models.ClientDTO"
             app:nullable="true"
             android:defaultValue="@null" />
         <argument
             android:name="PrinterDevice"
-            app:argType="com.example.ventasrovianda.Utils.Models.BluetoothDeviceSerializable"
+            app:argType="com.example.tiendas.Utils.Models.BluetoothDeviceSerializable"
             app:nullable="true"
             android:defaultValue="@null" />
         <argument
@@ -228,7 +231,7 @@
     </fragment>
     <fragment
         android:id="@+id/salesView"
-        android:name="com.example.ventasrovianda.sales.view.SalesView"
+        android:name="com.example.tiendas.sales.view.SalesView"
         android:label="SalesView"
         tools:layout="@layout/sales_list">
         <action
@@ -245,12 +248,12 @@
             app:destination="@id/pedidoView" />
         <argument
             android:name="clientInVisit"
-            app:argType="com.example.ventasrovianda.Utils.Models.ClientDTO"
+            app:argType="com.example.tiendas.Utils.Models.ClientDTO"
             app:nullable="true"
             android:defaultValue="@null" />
         <argument
             android:name="PrinterDevice"
-            app:argType="com.example.ventasrovianda.Utils.Models.BluetoothDeviceSerializable"
+            app:argType="com.example.tiendas.Utils.Models.BluetoothDeviceSerializable"
             app:nullable="true"
             android:defaultValue="@null" />
         <action
@@ -262,7 +265,7 @@
     </fragment>
     <fragment
         android:id="@+id/pedidoDetails"
-        android:name="com.example.ventasrovianda.pedidos.view.PedidoDetails"
+        android:name="com.example.tiendas.pedidos.view.PedidoDetails"
         android:label="PedidoDetails"
         tools:layout="@layout/order_details_edit">
         <action
@@ -277,12 +280,12 @@
             app:argType="long" />
         <argument
             android:name="clientInVisit"
-            app:argType="com.example.ventasrovianda.Utils.Models.ClientDTO"
+            app:argType="com.example.tiendas.Utils.Models.ClientDTO"
             app:nullable="true"
             android:defaultValue="@null" />
         <argument
             android:name="PrinterDevice"
-            app:argType="com.example.ventasrovianda.Utils.Models.BluetoothDeviceSerializable"
+            app:argType="com.example.tiendas.Utils.Models.BluetoothDeviceSerializable"
             app:nullable="true"
             android:defaultValue="@null" />
         <argument

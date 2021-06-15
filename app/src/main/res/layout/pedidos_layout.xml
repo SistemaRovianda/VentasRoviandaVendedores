@@ -23,7 +23,7 @@
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:background="#0C0C0C"
+        android:background="#FFFFFF"
         android:orientation="vertical"
         android:padding="10dp"
         app:layout_constraintBottom_toTopOf="@+id/linearLayout2"
@@ -38,7 +38,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:background="#0C0C0C"
+                android:background="#FFFFFF"
                 android:orientation="vertical">
 
                 <Button
@@ -63,7 +63,7 @@
         android:id="@+id/linearLayout2"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="#050505"
+        android:background="#F1E57D"
         android:orientation="horizontal"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -74,7 +74,7 @@
             style="@style/Widget.App.BottomNavigationView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#121211"
+            android:background="#F3CC57"
             app:menu="@menu/bottom_navigation_menu" />
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

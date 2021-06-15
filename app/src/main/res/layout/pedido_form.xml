@@ -9,7 +9,7 @@
         android:id="@+id/linearLayout4"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#0E0E0E"
+        android:background="#F1F1F1"
         android:orientation="vertical"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -30,7 +30,7 @@
                 android:fontFamily="@font/vidaloka"
                 android:gravity="center"
                 android:text="Registro de pedido"
-                android:textColor="#FFFFFF" />
+                android:textColor="#000000" />
 
             <Button
                 android:id="@+id/cancelarPedidoButton"
@@ -52,8 +52,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Urgente"
-                android:textColor="#ECE8E8"
-                app:buttonTint="#FFC107" />
+                android:textColor="#000000"
+                app:buttonTint="#1C1C1C" />
 
             <com.google.android.material.progressindicator.CircularProgressIndicator
                 android:id="@+id/loginLoadingSpinner"
@@ -67,21 +67,20 @@
                 android:id="@+id/inputProductPedido"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:textColorHint="#F6EEEE">
+                android:textColorHint="#040303">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="#0C0C0C"
                     android:hint="Codigo del producto"
-                    android:textColor="#FFFFFF" />
+                    android:textColor="#000000" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/inputQuantityPedido"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:textColorHint="#FFFFFF">
+                android:textColorHint="#0E0E0E">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:layout_width="match_parent"
@@ -89,7 +88,7 @@
                     android:background="#00050505"
                     android:hint="Cantidad piezas"
                     android:inputType="number"
-                    android:textColor="#FFFFFF" />
+                    android:textColor="#000000" />
             </com.google.android.material.textfield.TextInputLayout>
         </LinearLayout>
 
@@ -108,7 +107,7 @@
             <ListView
                 android:id="@+id/listCreatingOrder"
                 android:layout_width="match_parent"
-                android:layout_height="400dp" />
+                android:layout_height="300dp" />
 
             <Button
                 android:id="@+id/registerOrder"

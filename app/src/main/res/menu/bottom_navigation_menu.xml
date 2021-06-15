@@ -5,20 +5,22 @@
         android:icon="@drawable/ventas_ico"
         android:title="Ventas"
         android:color="@color/black"
-        android:visible="true" />
+        android:visible="false" />
     <item
         android:id="@+id/visitas_section"
         android:enabled="true"
         android:icon="@drawable/pedidos_ico"
         android:color="@color/black"
-        android:title="Visitas" />
+        android:title="Visitas"
+        android:visible="false"/>
 
     <item
         android:id="@+id/cliente_section"
         android:enabled="true"
         android:icon="@drawable/cliente_ico"
         android:color="@color/black"
-        android:title="Clientes"/>
+        android:title="Clientes"
+        android:visible="false"/>
     <item
         android:id="@+id/pedidos_section"
         android:enabled="true"
@@ -30,5 +32,6 @@
         android:enabled="true"
         android:icon="@drawable/ic_history_sales"
         android:color="@color/black"
-        android:title="Historial"/>
+        android:title="Historial"
+        android:visible="false"/>
 </menu>

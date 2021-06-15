@@ -14,7 +14,7 @@
         android:checkable="true"
         android:clickable="true"
         android:focusable="true"
-        app:cardBackgroundColor="#61615F"
+        app:cardBackgroundColor="#F4D36D"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -30,7 +30,7 @@
         android:checkable="true"
         android:clickable="true"
         android:focusable="true"
-        app:cardBackgroundColor="#ffffff"
+        app:cardBackgroundColor="#FFFFFF"
         app:cardCornerRadius="20dp"
         app:cardElevation="5dp"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -41,8 +41,7 @@
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="#070707">
+            android:layout_height="match_parent">
 
             <ImageView
                 android:id="@+id/imageView4"
@@ -78,7 +77,7 @@
                         android:id="@+id/materialCardView6"
                         android:layout_width="250dp"
                         android:layout_height="270dp"
-                        app:cardBackgroundColor="#070707"
+                        app:cardBackgroundColor="#FFFFFF"
                         app:cardCornerRadius="20dp"
                         app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintEnd_toEndOf="parent"
@@ -100,7 +99,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginBottom="30dp"
                                 android:text="Introduce tu usuario y contraseña para iniciar sesion"
-                                android:textColor="#47C82A"
+                                android:textColor="#050505"
                                 app:layout_constraintEnd_toEndOf="parent"
                                 app:layout_constraintStart_toStartOf="parent"
                                 app:layout_constraintTop_toTopOf="parent" />
@@ -110,23 +109,21 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:hint="Correo"
-                                android:textColorHint="#24E82C"
                                 app:boxStrokeColor="#F8F5F5"
                                 app:endIconTint="#FFFFFF"
-                                app:hintTextColor="#FFFFFF"
+                                app:hintTextColor="#777676"
                                 app:layout_constraintBottom_toBottomOf="parent"
                                 app:layout_constraintEnd_toEndOf="parent"
                                 app:layout_constraintStart_toStartOf="parent"
-                                app:layout_constraintTop_toTopOf="parent"
-                                app:startIconTint="#FFFFFF">
+                                app:layout_constraintTop_toTopOf="parent">
 
                                 <com.google.android.material.textfield.TextInputEditText
                                     android:id="@+id/emailInput"
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
-                                    android:background="#0B0A0A"
-                                    android:textColor="#FFFFFF"
-                                    android:textColorHint="#A9FFFFFF" />
+                                    android:background="#FFFFFF"
+                                    android:textColor="#000000"
+                                    android:textColorHint="#A9888686" />
                             </com.google.android.material.textfield.TextInputLayout>
 
                             <com.google.android.material.textfield.TextInputLayout
@@ -134,7 +131,7 @@
                                 android:layout_width="200dp"
                                 android:layout_height="wrap_content"
                                 android:hint="Contraseña"
-                                android:textColorHint="#FF2BE832"
+                                android:textColorHint="#777676"
                                 app:boxStrokeColor="#FFFFFF"
                                 app:endIconMode="password_toggle"
                                 app:endIconTint="#FFFFFF"
@@ -145,10 +142,10 @@
                                     android:id="@+id/passwordInput"
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
-                                    android:background="#000000"
+                                    android:background="#FFFFFF"
                                     android:inputType="textPassword"
-                                    android:textColor="#FFFFFF"
-                                    android:textColorHint="#A9FFFFFF" />
+                                    android:textColor="#000000"
+                                    android:textColorHint="#A9888686" />
 
                             </com.google.android.material.textfield.TextInputLayout>
 
