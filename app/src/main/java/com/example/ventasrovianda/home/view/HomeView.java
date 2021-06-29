@@ -1134,7 +1134,8 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
     void getEndDayTicketOffline() {
 
         Double weightG = Double.parseDouble("0");
-
+        int totalTickets=0;
+        int totalCanceled=0;
         Calendar calendar = Calendar.getInstance();
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
         String dateParsed = dateFormat.format(calendar.getTime());
@@ -1154,7 +1155,9 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
         if(viewModelStore.getStore()!=null){
         if( viewModelStore.getStore().getSales()!=null) {
             for (SaleOfflineMode sale : viewModelStore.getStore().getSales()) {
+
                 if(!sale.getStatusStr().equals("CANCELED")) {
+                    totalTickets++;
                     for (ProductsOfflineMode productOffline : sale.getProducts()) {
                         String productName = skus.get(productOffline.getProductKey());
                         if (productName == null) {
@@ -1207,12 +1210,17 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
                     } else if (sale.getTypeSale().equals("Cheque")) {
                         cheque += sale.getAmount();
                     }
+                }else{
+                    totalCanceled++;
+                    clientsStr += "\n" + sale.getFolio() + " " + sale.getClientName() +" "+sale.getKeyClient()+ "\n $" + sale.getAmount() + " " + ((sale.getTypeSale().equals("Crédito") || sale.getTypeSale().equals("CREDITO")) ? "C" : "") + " " + (sale.getStatusStr().equals("CANCELED") ? "CANCELADO" : "");
                 }
             }
         }
         if(viewModelStore.getStore().getSalesMaked()!=null) {
             for (SaleDTO saleDTO : viewModelStore.getStore().getSalesMaked()) {
+
                 if(!saleDTO.getStatusStr().equals("CANCELED")) {
+                    totalTickets++;
                     for (ProductSaleDTO productSaleDTO : saleDTO.getProducts()) {
                         String productName = skus.get(productSaleDTO.getProductKey());
                         if (productName == null) {
@@ -1265,6 +1273,9 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
                     } else if (saleDTO.getTypeSale().equals("Cheque")) {
                         cheque += saleDTO.getAmount();
                     }
+                }else{
+                    totalCanceled++;
+                    clientsStr += "\n" + saleDTO.getFolio() + " " + saleDTO.getClientName() +" "+saleDTO.getKeyClient()+ "\n $" + saleDTO.getAmount() + " " + ((saleDTO.getTypeSale().equals("Crédito") || saleDTO.getTypeSale().equals("CREDITO")) ? "C" : "")+ " " + (saleDTO.getStatusStr().equals("CANCELED") ? "CANCELADO" : "");
                 }
             }
         }
@@ -1308,7 +1319,9 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
         ticket+=clientsStr+"\n\n";
         ticket+="VENTAS POR CONCEPTO\nEFECTIVO: $"+String.format("%.02f",efectivo)+"\nCREDITO: $"+String.format("%.02f",credito)+"\nTRANSFERENCIA: $"+String.format("%.02f",transferencia)+"\nCHEQUE: $"+String.format("%.02f",cheque)+"\n";
         ticket+="TOTAL KILOS: "+String.format("%.02f",weightG)+"\nVENTA TOTAL:$ "+String.format("%.02f",efectivo+transferencia+cheque+credito)+"\n";
-        ticket+="Recup. Cobranza\n$ "+String.format("%.02f",creditCob)+"\n\n\n\n";
+        ticket+="Recup. Cobranza\n$ "+String.format("%.02f",creditCob)+"\n";
+        ticket+="Total de notas: "+totalTickets+"\n";
+        ticket+="Total de canceladas: "+totalCanceled+"\n\n\n\n";
         isLoading = false;
         this.circularProgressIndicator.setVisibility(View.INVISIBLE);
         printTiket(ticket);
