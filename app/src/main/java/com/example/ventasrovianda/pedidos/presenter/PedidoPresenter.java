@@ -55,11 +55,11 @@ public class PedidoPresenter implements PedidoPresenterContract{
     }
 
     @Override
-    public void getOrders() {
+    public void getOrders(String uid) {
         Map<String,String> headers = new HashMap<>();
-        String userId = firebaseAuth.getCurrentUser().getUid();
+
         GsonRequest<OrderDTO[]> productsRoviandaGet = new GsonRequest<OrderDTO[]>
-                (url+"/rovianda/seller/orders/"+userId,OrderDTO[].class,headers,
+                (url+"/rovianda/seller/orders/"+uid,OrderDTO[].class,headers,
                         new Response.Listener<OrderDTO[]>(){
                             @Override
                             public void onResponse(OrderDTO[] response) {
@@ -166,7 +166,9 @@ public class PedidoPresenter implements PedidoPresenterContract{
 
     @Override
     public void logout() {
-        this.firebaseAuth.signOut();
+        if(this.firebaseAuth!=null) {
+            this.firebaseAuth.signOut();
+        }
         view.goToLogin();
     }
 }

@@ -5,6 +5,6 @@ import com.example.ventasrovianda.Utils.Models.DaysVisited;
 
 public interface RegisterClientPresenterContract {
 
-    void registClient(ClientModel clientModel, DaysVisited daysVisited);
+    void registClient(ClientModel clientModel, DaysVisited daysVisited,String uid);
     void getCurrentCountClient();
 }

@@ -3,7 +3,15 @@ package com.example.ventasrovianda.Utils.Models;
 public class ModeOfflineSMP {
 
     private Float quantity,amount;
-    private Integer productId,presentationId;
+    private Integer productId,presentationId,appSubSaleId;
+
+    public Integer getAppSubSaleId() {
+        return appSubSaleId;
+    }
+
+    public void setAppSubSaleId(Integer appSubSaleId) {
+        this.appSubSaleId = appSubSaleId;
+    }
 
     public Float getQuantity() {
         return quantity;

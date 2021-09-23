@@ -174,7 +174,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:gravity="center"
-                                android:text="v. 8.1.0"
+                                android:text="v. 9.5.0"
                                 android:textColor="#FAFAFA" />
 
                         </LinearLayout>

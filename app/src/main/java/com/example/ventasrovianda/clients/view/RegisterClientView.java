@@ -14,6 +14,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.NavController;
 import androidx.navigation.fragment.NavHostFragment;
 
@@ -22,12 +23,16 @@ import com.example.ventasrovianda.Utils.Models.BluetoothDeviceSerializable;
 import com.example.ventasrovianda.Utils.Models.ClientDTO;
 import com.example.ventasrovianda.Utils.Models.ClientModel;
 import com.example.ventasrovianda.Utils.Models.DaysVisited;
+import com.example.ventasrovianda.Utils.ViewModelStore;
 import com.example.ventasrovianda.clients.presenter.RegisterClientPresenter;
 import com.example.ventasrovianda.clients.presenter.RegisterClientPresenterContract;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.progressindicator.CircularProgressIndicator;
 import com.google.android.material.textfield.TextInputLayout;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class RegisterClientView extends Fragment implements View.OnClickListener,RegisterClientViewContract {
 
@@ -42,7 +47,7 @@ public class RegisterClientView extends Fragment implements View.OnClickListener
     BluetoothDeviceSerializable bluetoothDeviceSerializable=null;
 
     String userName;
-
+    ViewModelStore viewModelStore=null;
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -97,6 +102,13 @@ public class RegisterClientView extends Fragment implements View.OnClickListener
         });
         return view;
     }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        viewModelStore = new ViewModelProvider(requireActivity()).get(ViewModelStore.class);
+
+    }
+
 
     @Override
     public void onClick(View v) {
@@ -217,7 +229,7 @@ public class RegisterClientView extends Fragment implements View.OnClickListener
         }
         DaysVisited daysVisited = new DaysVisited();
         daysVisited.assingDays(daysSeleted);
-        this.presenter.registClient(clientModel,daysVisited);
+        this.presenter.registClient(clientModel,daysVisited,viewModelStore.getStore().getSellerId());
     }
 
     @Override

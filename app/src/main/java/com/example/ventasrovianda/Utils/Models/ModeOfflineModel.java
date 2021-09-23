@@ -23,7 +23,15 @@ public class ModeOfflineModel {
     private List<ClientOfflineMode> clients;
     private List<ClientOfflineMode> clientsToVisit;
     private List<SaleDTO> salesMaked;
+    private Integer limitOfSales;
 
+    public Integer getLimitOfSales() {
+        return limitOfSales;
+    }
+
+    public void setLimitOfSales(Integer limitOfSales) {
+        this.limitOfSales = limitOfSales;
+    }
 
     public List<ClientOfflineMode> getClientsToVisit() {
         return clientsToVisit;

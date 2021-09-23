@@ -10,6 +10,37 @@ public class SaleResponseDTO {
     private String typeSale;
     private String statusStr;
     private Boolean status;
+    private String cancelAutorized;
+    private Integer devolutionid;
+    private String devolutionStatus;
+
+    public String getDevolutionStatus() {
+        return devolutionStatus;
+    }
+
+    public void setDevolutionStatus(String devolutionStatus) {
+        this.devolutionStatus = devolutionStatus;
+    }
+
+    public Integer getDevolutionid() {
+        return devolutionid;
+    }
+
+    public void setDevolutionid(Integer devolutionid) {
+        this.devolutionid = devolutionid;
+    }
+
+    public Boolean getStatus() {
+        return status;
+    }
+
+    public String getCancelAutorized() {
+        return cancelAutorized;
+    }
+
+    public void setCancelAutorized(String cancelAutorized) {
+        this.cancelAutorized = cancelAutorized;
+    }
 
     public Boolean isStatus() {
         return status;

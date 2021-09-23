@@ -92,11 +92,11 @@ public class RegisterClientPresenter implements RegisterClientPresenterContract{
     }
 
     @Override
-    public void registClient(ClientModel clientModel, DaysVisited daysVisited) {
+    public void registClient(ClientModel clientModel, DaysVisited daysVisited,String uid) {
 
         if(validClientModel(clientModel)==true) {
 
-            ClientModelRequest clientModelRequest = generateRequest(clientModel,daysVisited);
+            ClientModelRequest clientModelRequest = generateRequest(clientModel,daysVisited,uid);
             System.out.println("Modelo: "+parser.toJson(clientModelRequest));
             Map<String, String> headers = new HashMap<>();
             headers.put("Content-Type", "application/json");
@@ -142,7 +142,7 @@ public class RegisterClientPresenter implements RegisterClientPresenterContract{
         }
     }
 
-    ClientModelRequest generateRequest(ClientModel clientModel,DaysVisited daysVisited){
+    ClientModelRequest generateRequest(ClientModel clientModel,DaysVisited daysVisited,String uid){
         ClientModelRequest  clientModelRequest = new ClientModelRequest();
         AddressClient addressClient = new AddressClient();
         addressClient.setCp(Integer.parseInt(clientModel.getCp()));
@@ -166,7 +166,7 @@ public class RegisterClientPresenter implements RegisterClientPresenterContract{
         clientModelRequest.setName(clientModel.getNombre());
         clientModelRequest.setPhone(clientModel.getTelefono());
         clientModelRequest.setRfc(clientModel.getRfc());
-        clientModelRequest.setSaleUid(this.firebaseAuth.getCurrentUser().getUid());
+        clientModelRequest.setSaleUid(uid);
         clientModelRequest.setDaysVisited(daysVisited);
         clientModelRequest.setTypeClient(clientModel.getTypeClient());
         return clientModelRequest;

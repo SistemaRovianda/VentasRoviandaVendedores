@@ -1,5 +1,6 @@
 package com.example.ventasrovianda.sales.view;
 
+import android.app.DatePickerDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Context;
@@ -12,6 +13,8 @@ import android.net.NetworkInfo;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
@@ -19,6 +22,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.DatePicker;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -35,9 +39,9 @@ import androidx.navigation.NavController;
 import androidx.navigation.fragment.NavHostFragment;
 
 import com.example.ventasrovianda.R;
+import com.example.ventasrovianda.Utils.DatePickerFragment;
 import com.example.ventasrovianda.Utils.Models.BluetoothDeviceSerializable;
 import com.example.ventasrovianda.Utils.Models.ClientDTO;
-import com.example.ventasrovianda.Utils.Models.ClientVisitDTO;
 import com.example.ventasrovianda.Utils.Models.ModeOfflineModel;
 import com.example.ventasrovianda.Utils.Models.PayDebtsModel;
 import com.example.ventasrovianda.Utils.Models.ProductSaleDTO;
@@ -48,7 +52,15 @@ import com.example.ventasrovianda.Utils.Models.SaleResponseDTO;
 import com.example.ventasrovianda.Utils.Models.TotalSoldedDTO;
 import com.example.ventasrovianda.Utils.PrinterUtil;
 import com.example.ventasrovianda.Utils.ViewModelStore;
+import com.example.ventasrovianda.Utils.bd.entities.Debt;
+import com.example.ventasrovianda.Utils.bd.entities.DevolutionRequest;
+import com.example.ventasrovianda.Utils.bd.entities.DevolutionSubSale;
+import com.example.ventasrovianda.Utils.bd.entities.Product;
+import com.example.ventasrovianda.Utils.bd.entities.Sale;
+import com.example.ventasrovianda.Utils.bd.entities.SubSale;
+import com.example.ventasrovianda.Utils.bd.entities.UserDataInitial;
 import com.example.ventasrovianda.sales.adapter.SaleDebtListAdapter;
+import com.example.ventasrovianda.sales.adapter.SaleDevolutionAdapter;
 import com.example.ventasrovianda.sales.adapter.SaleListAdapter;
 import com.example.ventasrovianda.sales.presenter.SalePresenterContract;
 import com.example.ventasrovianda.sales.presenter.SalesPresenter;
@@ -64,14 +76,17 @@ import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 public class SalesView  extends Fragment implements  View.OnClickListener,SaleViewContract{
@@ -82,7 +97,7 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
     ListView listSales;
     SalePresenterContract salesPresenter;
     BluetoothDeviceSerializable bluetoothDeviceSerializable=null;
-    ImageView printerButton;
+    ImageView printerButton,changeDateButton;
     boolean printerConnected=false;
     PrinterUtil printerUtil=null;
     BluetoothDevice printer=null;
@@ -90,7 +105,7 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
     CircularProgressIndicator circularProgressIndicator;
     boolean isLoading=false;
 
-    MaterialButton printResguardButton;
+    MaterialButton devolutionButton;
 
     String userName;
     TextView userNameTextView;
@@ -112,8 +127,6 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
         this.circularProgressIndicator = view.findViewById(R.id.loginLoadingSpinner);
         this.printerButton = view.findViewById(R.id.printerButton);
         this.printerButton.setOnClickListener(this);
-        //this.printerButton.setEnabled(false);
-        //this.printerButton.setVisibility(View.GONE);
         this.endDayButton = view.findViewById(R.id.end_day_button);
         this.eatTimeButton = view.findViewById(R.id.eat_time_button);
         this.logoutButton = view.findViewById(R.id.Logout_button);
@@ -125,27 +138,17 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
         this.buttonCobranzaHistory = view.findViewById(R.id.buttonCobranzaHistory);
         this.buttonCobranzaHistory.setOnClickListener(this);
         this.userNameTextView.setTextColor(Color.parseColor("#236EF2"));
-        Calendar calendar = Calendar.getInstance();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-        String dateParsed = dateFormat.format(calendar.getTime());
+
         this.fromDate = view.findViewById(R.id.fromDate);
-        fromDate.setText("Ventas: "+dateParsed);
-        if(bluetoothDeviceSerializable!=null){
-            this.printerConnected = bluetoothDeviceSerializable.isPrinterConnected();
-            if(this.printerConnected){
-                printerConnected();
-                if(printerUtil==null){
-                    printerUtil = new PrinterUtil(getContext());
-                }
-                printer = bluetoothDeviceSerializable.getBluetoothDevice();
-            }
-        }
-        this.printResguardButton=view.findViewById(R.id.printResguardButton);
-        this.printResguardButton.setOnClickListener(this);
+
+        this.changeDateButton=view.findViewById(R.id.changeDateButton);
+        this.changeDateButton.setOnClickListener(this);
+        this.devolutionButton=view.findViewById(R.id.devolutionsButton);
+        this.devolutionButton.setOnClickListener(this);
         this.endDayButton.setText("PESO");
         this.eatTimeButton.setText("VENDIDO");
-        /*this.endDayButton.setVisibility(View.GONE);
-        this.eatTimeButton.setVisibility(View.GONE);*/
+        this.endDayButton.setVisibility(View.VISIBLE);
+        this.eatTimeButton.setVisibility(View.VISIBLE);
         this.clientDTO = SalesViewArgs.fromBundle(getArguments()).getClientInVisit();
         this.navController = NavHostFragment.findNavController(this);
         homeButton = view.findViewById(R.id.bottom_navigation_home);
@@ -269,21 +272,85 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
     }
 
 
-    @RequiresApi(api = Build.VERSION_CODES.N)
+    String dateSelected="";
+    @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         viewModelStore = new ViewModelProvider(requireActivity()).get(ViewModelStore.class);
-        if(checkOffline()){
+        /*if(checkOffline()){
             modeOffline=true;
-            fillSalesOffline();
+
         }else{
             modeOffline=false;
             this.salesPresenter.checkAccumulated();
             this.salesPresenter.getAllSaleOfDay();
-        }
+        }*/
+        LocalDateTime ldt = LocalDateTime.now();
+        DateTimeFormatter formmat1 = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        System.out.println("FECHA_DE_HOY: "+ldt);
+        String dateParsed = formmat1.format(ldt);
+
+        dateSelected=dateParsed;
+        fromDate.setText("Ventas: "+dateParsed);
+        fillSalesOffline(dateSelected);
+        checkIfPrinterConfigured();
 
     }
+    void showDatePicker(){
+        DatePickerFragment newFragment = DatePickerFragment.newInstance(new DatePickerDialog.OnDateSetListener() {
+            @RequiresApi(api = Build.VERSION_CODES.O)
+            @Override
+            public void onDateSet(DatePicker view, int year, int month, int dayOfMonth) {
+                String monthStr = String.valueOf(month+1);
+                String day = String.valueOf(dayOfMonth);
+                if((month+1)<10) monthStr="0"+monthStr;
+                if(dayOfMonth<10) day="0"+day;
+                dateSelected = year+"-"+monthStr+"-"+day;
+                System.out.println("Fecha seleccionada: "+dateSelected);
+                fromDate.setText("Ventas: "+dateSelected);
+                if(!cobranza) {
+                    fillSalesOffline(dateSelected);
+                }else{
+                    fillSalesDebOffline(dateSelected);
+                }
+            }
+        });
 
+        newFragment.show(getActivity().getSupportFragmentManager(),"datePicker");
+    }
+
+    void checkIfPrinterConfigured(){
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+
+                UserDataInitial userDataInitial = viewModelStore.getAppDatabase().userDataInitialDao().getDetailsInitialByUid(viewModelStore.getStore().getSellerId());
+
+
+                handler.post(new Runnable() {
+                    @RequiresApi(api = Build.VERSION_CODES.N)
+                    @Override
+                    public void run() {
+                        if(userDataInitial!=null && userDataInitial.printerMacAddress!=null){
+                            BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+                            Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
+                            for(BluetoothDevice bluetoothDevice :pairedDevices){
+                                if(bluetoothDevice.getAddress().equals(userDataInitial.printerMacAddress)){
+                                    printer=bluetoothDevice;
+                                    printerConnected=true;
+                                    printerConnected();
+                                }
+                            }
+                            if(!printerConnected){
+                                printerNoConnected();
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    }
+/*
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     Boolean checkOffline(){
         Calendar calendar = Calendar.getInstance();
@@ -292,272 +359,173 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
         File root = new File(getContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "offline");
         File gpxfile = new File(root, "offline-"+dateParsed+".rovi");
         return gpxfile.exists();
+    }*/
+
+
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    void fillSalesOffline(String date){
+            fillOfSql(date);
+        //isLoading=false;
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.N)
-    void fillSalesOffline(){
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    Handler handler = new Handler(Looper.getMainLooper());
 
-            List<SaleResponseDTO> saleResponseDTOS = viewModelStore.getStore().getSales().stream().map(sale->{
-                SaleResponseDTO saleResponseDTO = new SaleResponseDTO();
-                saleResponseDTO.setAmount(Float.parseFloat(sale.getAmount().toString()));
-                ClientDTO clientDTO = new ClientDTO();
-                clientDTO.setKeyClient(Integer.parseInt(sale.getKeyClient().toString()));
-                clientDTO.setName(sale.getClientName());
-                saleResponseDTO.setClient(clientDTO);
-                saleResponseDTO.setFolio(sale.getFolio());
-                saleResponseDTO.setSaleId(Long.parseLong("0"));
-                saleResponseDTO.setDate(sale.getDate());
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    void fillOfSql(String date){
+        String dateParsed1 = date+"T00:00:00.000Z";
+        String dateParsed2 = date+"T23:59:59.000Z";
+        executor.execute(new  Runnable() {
+            @Override
+            public void run() {
 
-                if(viewModelStore.getStore().getDebts()!=null && viewModelStore.getStore().getDebts().size()>0) {
-                    for (SaleOfflineMode deb : viewModelStore.getStore().getDebts()) {
-                        if(deb.getFolio().equals(sale.getFolio()) && !deb.getStatus()){
-                            saleResponseDTO.setStatus(false);
-                        }else{
-                            saleResponseDTO.setStatus(true);
-                        }
-                    }
-                }else{
-                    saleResponseDTO.setStatus(false);
-                }
+                //Background work here
+                List<SaleResponseDTO> saleResponseDTOS=new ArrayList<>();
+                List<SubSale> subSales = new ArrayList<>();
+                List<Sale> sales = viewModelStore.getAppDatabase().saleDao().getAllSalesByDate(dateParsed1,dateParsed2);
 
-                saleResponseDTO.setStatusStr(sale.getStatusStr());
-                saleResponseDTO.setTypeSale(sale.getTypeSale());
-                return saleResponseDTO;
-            }).collect(Collectors.toList());
-            if(viewModelStore.getStore().getSalesMaked()!=null && viewModelStore.getStore().getSalesMaked().size()>0){
-                System.out.println("SalesMaked size: "+viewModelStore.getStore().getSalesMaked().size());
-                List<SaleResponseDTO> saleMakedResponseDTOS = viewModelStore.getStore().getSalesMaked().stream().map(sale->{
+                for(Sale sale : sales) {
                     SaleResponseDTO saleResponseDTO = new SaleResponseDTO();
-                    saleResponseDTO.setAmount(Float.parseFloat(sale.getAmount().toString()));
+                    saleResponseDTO.setAmount(Float.parseFloat(sale.amount.toString()));
                     ClientDTO clientDTO = new ClientDTO();
-                    clientDTO.setKeyClient(sale.getKeyClient());
-                    clientDTO.setName(sale.getClientName());
+                    clientDTO.setKeyClient(sale.keyClient);
+                    clientDTO.setName(sale.clientName);
                     saleResponseDTO.setClient(clientDTO);
-                    saleResponseDTO.setFolio(sale.getFolio());
+                    saleResponseDTO.setFolio(sale.folio);
                     saleResponseDTO.setSaleId(Long.parseLong("0"));
-                    saleResponseDTO.setDate("");
-                    System.out.println("Folios mapped: "+sale.getFolio());
-                    if(viewModelStore.getStore().getDebts()!=null && viewModelStore.getStore().getDebts().size()>0) {
-                        for (SaleOfflineMode deb : viewModelStore.getStore().getDebts()) {
-                            if(deb.getFolio().equals(sale.getFolio()) && !deb.getStatus()){
-                                saleResponseDTO.setStatus(false);
-                            }else{
-                                saleResponseDTO.setStatus(true);
+                    saleResponseDTO.setDate(sale.date);
+                    saleResponseDTO.setStatus(sale.status);
+                    saleResponseDTO.setStatusStr(sale.statusStr);
+                    saleResponseDTO.setTypeSale(sale.typeSale);
+                    saleResponseDTO.setSaleId(Long.parseLong(String.valueOf(sale.saleId)));
+                    saleResponseDTO.setCancelAutorized(sale.cancelAutorized);
+                    saleResponseDTOS.add(saleResponseDTO);
+
+                    DevolutionRequest devolutionRequest = viewModelStore.getAppDatabase().devolutionRequestDao().findDevolutionRequestByFolioRegister(sale.folio);
+                        if(devolutionRequest!=null){
+                            saleResponseDTO.setDevolutionStatus(devolutionRequest.status);
+                            saleResponseDTO.setDevolutionid(devolutionRequest.devolutionRequestId);
+                        }
+
+                    System.out.println("Estatus: "+sale.statusStr);
+                    if(!(sale.statusStr.equals("CANCELED") && sale.cancelAutorized!=null && sale.cancelAutorized.equals("true"))) {
+
+                        List<SubSale> subSales1;
+                        subSales1 = viewModelStore.getAppDatabase().subSalesDao().getSubSalesBySale(sale.folio);
+                        if (devolutionRequest != null && devolutionRequest.status.equals("ACCEPTED")) {
+                            for (SubSale subSale : subSales1) {
+                                DevolutionSubSale devolutionSubSale = viewModelStore.getAppDatabase().devolutionSubSaleDao().findDevolutionSubSaleBySubSaleId(subSale.subSaleId);
+                                subSale.price = (subSale.price / subSale.quantity) * devolutionSubSale.quantity;
+                                subSale.quantity = devolutionSubSale.quantity;
                             }
                         }
-                    }else{
-                        saleResponseDTO.setStatus(false);
-                    }
-
-                    saleResponseDTO.setStatusStr(sale.getStatusStr());
-                    saleResponseDTO.setTypeSale(sale.getTypeSale());
-                    return saleResponseDTO;
-                }).collect(Collectors.toList());
-                if(saleMakedResponseDTOS.size()>0) {
-                    for (SaleResponseDTO item : saleMakedResponseDTOS) {
-                        saleResponseDTOS.add(item);
+                        for (SubSale subSale : subSales1) {
+                            subSales.add(subSale);
+                        }
                     }
                 }
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        SaleResponseDTO[] sales = new SaleResponseDTO[saleResponseDTOS.size()];
+                        saleResponseDTOS.toArray(sales);
+                        setSalesOfDay(sales);
+                        checkAccumulatedOffline(subSales);
+                    }
+                });
             }
-            SaleResponseDTO[] sales = new SaleResponseDTO[saleResponseDTOS.size()];
-            saleResponseDTOS.toArray(sales);
-            this.setSalesOfDay(sales);
-            this.checkAccumulatedOffline();
-
-        isLoading=false;
+        });
     }
 
     @RequiresApi(api = Build.VERSION_CODES.N)
-    void fillSalesDebOffline(){
-        if(viewModelStore.getStore()!=null && viewModelStore.getStore().getDebts()!=null){
-            modeOffline=true;
+    void fillSalesDebOffline(String date){
 
-            List<SaleResponseDTO> saleResponseDTOS = viewModelStore.getStore().getDebts().stream().map(sale->{
-                SaleResponseDTO saleResponseDTO = new SaleResponseDTO();
-                saleResponseDTO.setAmount(Float.parseFloat(sale.getAmount().toString()));
-                ClientDTO clientDTO = new ClientDTO();
-                clientDTO.setKeyClient(Integer.parseInt(sale.getKeyClient().toString()));
-                clientDTO.setName(sale.getClientName());
-                saleResponseDTO.setClient(clientDTO);
-                saleResponseDTO.setFolio(sale.getFolio());
-                saleResponseDTO.setSaleId(Long.parseLong("0"));
-                saleResponseDTO.setDate(sale.getDate());
-                if(viewModelStore.getStore().getDebts()!=null && viewModelStore.getStore().getDebts().size()>0) {
-                    for (SaleOfflineMode deb : viewModelStore.getStore().getDebts()) {
-                        if(deb.getFolio().equals(sale.getFolio()) && !deb.getStatus()){
-                            saleResponseDTO.setStatus(false);
-                        }else{
-                            saleResponseDTO.setStatus(true);
+            executor.execute(new  Runnable() {
+                @RequiresApi(api = Build.VERSION_CODES.O)
+                @Override
+                public void run() {
+                    String dateParsed1 = date+"T00:00:00.000Z";
+                    String dateParsed2 = date+"T23:59:59.000Z";
+                    //Background work here
+                    List<SaleResponseDTO> saleResponseDTOS=new ArrayList<>();
+                    List<SubSale> subSales = new ArrayList<>();
+                    List<Sale> sales = viewModelStore.getAppDatabase().saleDao().getAllDebts();
+
+                    List<Debt> debts = viewModelStore.getAppDatabase().debtDao().getAllSalesWithoutSincronization();
+                    List<Debt> debtsPayed = viewModelStore.getAppDatabase().debtDao().getAllSalesDebtsBetweenDates(dateParsed1,dateParsed2);
+                    List<String> listDebts = debts.stream().map(x->x.folio).collect(Collectors.toList());
+                    for(Debt debt : debtsPayed){
+                        if(!listDebts.contains(debt.folio)){
+                            debts.add(debt);
                         }
                     }
-                }else{
-                    saleResponseDTO.setStatus(false);
-                }
-                saleResponseDTO.setStatusStr(sale.getStatusStr());
-                saleResponseDTO.setTypeSale(sale.getTypeSale());
-                return saleResponseDTO;
-            }).collect(Collectors.toList());
+                    List<String> salesIds = sales.stream().map(x->x.folio).collect(Collectors.toList());
+                    for(Debt debt : debts){
+                        if(!salesIds.contains(debt.folio)){
+                            Sale sale= viewModelStore.getAppDatabase().saleDao().getByFolio(debt.folio);
+                            sales.add(sale);
+                        }
+                    }
+                    for(Sale sale : sales) {
+                        if(!sale.statusStr.equals("CANCELED")) {
+                        salesIds.add(sale.folio);
+                        SaleResponseDTO saleResponseDTO = new SaleResponseDTO();
+                        saleResponseDTO.setAmount(Float.parseFloat(sale.amount.toString()));
+                        ClientDTO clientDTO = new ClientDTO();
+                        clientDTO.setKeyClient(sale.keyClient);
+                        clientDTO.setName(sale.clientName);
+                        saleResponseDTO.setClient(clientDTO);
+                        saleResponseDTO.setFolio(sale.folio);
+                        saleResponseDTO.setSaleId(Long.parseLong("0"));
+                        saleResponseDTO.setDate(sale.date);
+                        saleResponseDTO.setStatus(sale.status);
+                        saleResponseDTO.setStatusStr(sale.statusStr);
+                        saleResponseDTO.setTypeSale(sale.typeSale);
+                        saleResponseDTO.setSaleId(Long.parseLong(String.valueOf(sale.saleId)));
+                        saleResponseDTO.setCancelAutorized(sale.cancelAutorized);
+                        System.out.println("Estatus: "+sale.statusStr);
+                            saleResponseDTOS.add(saleResponseDTO);
+                            List<SubSale> subSales1 = viewModelStore.getAppDatabase().subSalesDao().getSubSalesBySale(sale.folio);
+                            System.out.println("Total subsales : "+subSales1.size());
+                            for (SubSale subSale : subSales1) {
+                                subSales.add(subSale);
+                            }
+                        }
+                    }
 
-            SaleResponseDTO[] sales = new SaleResponseDTO[saleResponseDTOS.size()];
-            saleResponseDTOS.toArray(sales);
-            this.setSalesDebtsOfDay(sales);
-            this.checkAccumulatedOffline();
-        }else{
-            modeOffline=false;
-            this.salesPresenter.checkAccumulated();
-            this.salesPresenter.getAllSaleDebtsOfDay();
-        }
-        isLoading=false;
+                    handler.post(new Runnable() {
+                        @Override
+                        public void run() {
+
+                                SaleResponseDTO[] sales = new SaleResponseDTO[saleResponseDTOS.size()];
+                                saleResponseDTOS.toArray(sales);
+                                setSalesDebtsOfDay(sales);
+
+                        }
+                    });
+                }});
     }
 
-    void checkAccumulatedOffline(){
+    void checkAccumulatedOffline(List<SubSale> subSales){
         Float weightG=Float.parseFloat("0");
         Float AmountG=Float.parseFloat("0");
-       /* Calendar calendar = Calendar.getInstance();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-        String dateParsed = dateFormat.format(calendar.getTime());
-        String ticket = "\nReporte de cierre\nVendedor: "+viewModelStore.getStore().getUsername()+"\nFecha: "+dateParsed+"\n------------------------\n";
-        ticket+="ART.   DESC    CANT    PRECIO  IMPORTE\n";
-        Map<String,String> skus = new HashMap<>();
-        Map<String,Double> pricesBySku = new HashMap<>();
-        Map<String,Double> weightTotal = new HashMap<>();
-        Map<String,Double> amountTotal = new HashMap<>();
-        Double efectivo=Double.parseDouble("0");
-        Double credito=Double.parseDouble("0");
-        Double transferencia=Double.parseDouble("0");
-        Double cheque=Double.parseDouble("0");
-        String clientsStr="";*/
 
-
-        for(SaleOfflineMode sale : viewModelStore.getStore().getSales()){
-            if(!sale.getStatusStr().equals("CANCELED")) {
-                for (ProductsOfflineMode productOffline : sale.getProducts()) {
-                /*String productName= skus.get(productOffline.getProductKey());
-                if(productName==null){
-                    skus.put(productOffline.getProductKey(),productOffline.getProductName()+" "+productOffline.getProductPresentationType());
-                }*/
-               /* Double weight = weightTotal.get(productOffline.getProductKey());
-                if(weight==null){
-                    Double weightByProduct = (productOffline.getType().equals("PZ")?productOffline.getQuantity()*productOffline.getWeightStandar():productOffline.getQuantity());
-                    weightTotal.put(productOffline.getProductKey(),weightByProduct);
-                }else{
-                    weight+= (productOffline.getType().equals("PZ")?productOffline.getQuantity()*productOffline.getWeightStandar():productOffline.getQuantity());
-                    weightTotal.put(productOffline.getProductKey(),weight);
-                }*/
-                    if (productOffline.getType().equals("PZ")) {
-                        weightG += productOffline.getWeightStandar() * productOffline.getQuantity();
+                for (SubSale subSale : subSales) {
+                    System.out.println("Producto: "+subSale.productName);
+                    System.out.println("quantity: "+subSale.quantity);
+                    System.out.println("Price: "+subSale.price);
+                    if (subSale.uniMed.toLowerCase().equals("pz")) {
+                        weightG += subSale.weightStandar * subSale.quantity;
                     } else {
-                        weightG += productOffline.getQuantity();
+                        weightG += subSale.quantity;
                     }
-
-                /*Double amountByProduct = pricesBySku.get(productOffline.getProductKey());
-                if(amountByProduct==null){
-                    Double amount = productOffline.getPrice();
-                    amountTotal.put(productOffline.getProductKey(),amount);
-                }*/
-
-                /*Double amountSubSale = amountTotal.get(productOffline.getProductKey());
-                if(amountSubSale==null){
-                    Double amount = productOffline.getPrice()*productOffline.getQuantity();
-                    amountTotal.put(productOffline.getProductKey(),amount);
-                }else{
-                    amountSubSale+=productOffline.getPrice();
-                    amountTotal.put(productOffline.getProductKey(),amountSubSale);
-                }*/
+                    AmountG += subSale.price;
                 }
-                AmountG += sale.getAmount();
-           /* clientsStr+="\n"+sale.getFolio()+" "+sale.getClientName()+" $"+sale.getAmount()+" "+sale.getTypeSale()+" " +(sale.getStatusStr().equals("CANCELED")?"CANCELADO":"");
-            if(sale.getTypeSale().equals("CREDITO")){
-                credito+=sale.getAmount();
-            }else if(sale.getTypeSale().equals("Transferencia")){
-                transferencia+=sale.getAmount();
-            }else if(sale.getTypeSale().equals("Efectivo")){
-                efectivo+=sale.getAmount();
-            }else if(sale.getTypeSale().equals("Cheque")){
-                cheque+=sale.getAmount();
-            }*/
-            }
-        }
-        if(viewModelStore.getStore().getSalesMaked()!=null) {
-            for (SaleDTO saleDTO : viewModelStore.getStore().getSalesMaked()) {
-                if(!saleDTO.getStatusStr().equals("CANCELED")) {
-                    for (ProductSaleDTO productSaleDTO : saleDTO.getProducts()) {
-                    /*String productName= skus.get(productSaleDTO.getProductKey());
-                    if(productName==null){
-                        skus.put(productSaleDTO.getProductKey(),productSaleDTO.getProductName()+" "+productSaleDTO.getProductPresentation());
-                    }
-                    Float weight = weightTotal.get(productSaleDTO.getProductKey());
-                    if(weight==null){
-                        Float weightByProduct = (productSaleDTO.getTypeUnid().equals("PZ")?productSaleDTO.getQuantity()*productSaleDTO.getWeightOriginal():productSaleDTO.getQuantity());
-                        weightTotal.put(productSaleDTO.getProductKey(),weightByProduct);
-                        weightG+=weightByProduct;
-                    }else{
-                        weight+= (productSaleDTO.getTypeUnid().equals("PZ")?productSaleDTO.getQuantity()*productSaleDTO.getWeightOriginal():productSaleDTO.getQuantity());
-                        weightTotal.put(productSaleDTO.getProductKey(),weight);
-                        weightG+=(productSaleDTO.getTypeUnid().equals("PZ")?productSaleDTO.getQuantity()*productSaleDTO.getWeightOriginal():productSaleDTO.getQuantity());;
-                    }
-
-                    Float amountByProduct = pricesBySku.get(productSaleDTO.getProductKey());
-                    if(amountByProduct==null){
-                        Float amount = productSaleDTO.getPrice();
-                        pricesBySku.put(productSaleDTO.getProductKey(),amount);
-                    }
-
-                    Float amountSubSale = amountTotal.get(productSaleDTO.getProductKey());
-                    if(amountSubSale==null){
-                        Float amount = productSaleDTO.getPrice()*productSaleDTO.getQuantity();
-                        amountTotal.put(productSaleDTO.getProductKey(),amount);
-                    }else{
-                        amountSubSale+=productSaleDTO.getPrice();
-                        amountTotal.put(productSaleDTO.getProductKey(),amountSubSale);
-                    }*/
-                        if (productSaleDTO.getTypeUnid().equals("PZ")) {
-                            weightG += productSaleDTO.getWeightOriginal() * productSaleDTO.getQuantity();
-                        } else {
-                            weightG += productSaleDTO.getQuantity();
-                        }
-                    }
-
-               /* clientsStr+="\n"+saleDTO.getFolio()+" "+saleDTO.getClientName()+" $"+saleDTO.getAmount()+" "+saleDTO.getTypeSale()+" " +(saleDTO.getStatusStr().equals("CANCELED")?"CANCELADO":"");
-                if(saleDTO.getTypeSale().equals("CREDITO")){
-                    credito+=saleDTO.getAmount();
-                }else if(saleDTO.getTypeSale().equals("Transferencia")){
-                    transferencia+=saleDTO.getAmount();
-                }else if(saleDTO.getTypeSale().equals("Efectivo")){
-                    efectivo+=saleDTO.getAmount();
-                }else if(saleDTO.getTypeSale().equals("Cheque")){
-                    cheque+=saleDTO.getAmount();
-                }*/
-                    AmountG += saleDTO.getAmount();
-                }
-            }
-        }
         TotalSoldedDTO totalSoldedDTO = new TotalSoldedDTO();
         totalSoldedDTO.setTotalSolded(String.format("%.02f",AmountG));
         totalSoldedDTO.setTotalWeight(weightG);
         setAcumulated(totalSoldedDTO);
-       /* List<String> allSkus = new ArrayList<>();
-        for(String sku : skus.keySet()){
-            allSkus.add(sku);
-        }
 
-        Collections.sort(allSkus, new Comparator<String>() {
-            @Override
-            public int compare(String o1, String o2) {
-                return o1.compareTo(o2);
-            }
-        });
-        for(String sku : allSkus){
-            String productName = skus.get(sku);
-            Double weight = weightTotal.get(sku);
-            Double price = pricesBySku.get(sku);
-            Double amount = amountTotal.get(sku);
-            ticket+=sku+"\n"+productName+" "+weight+" $"+price+" $"+amount;
-        }
-        ticket+="\n-----------------------------------------\nDOC NOMBRE  CLIENTE IMPORTE TIPOVENTA\n-----------------------------------------\n";
-        ticket+=clientsStr+"\n\n";
-        ticket+="VENTAS POR CONCEPTO\nEFECTIVO: $"+efectivo+"\nCREDITO: $"+credito+"\nTRANSFERENCIA: $"+transferencia+"\nCHEQUE: $"+cheque+"\n";
-        ticket+="VENTA TOTAL:$ "+(efectivo+transferencia+cheque+credito);*/
     }
 
     void goToHome(){
@@ -577,8 +545,8 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
     }
 
     void logout(){
-        AlertDialog dialog = new MaterialAlertDialogBuilder(getContext()).setTitle("Cerrar sesion")
-                .setMessage("¿Está seguro que desea cerrar sesion?").setPositiveButton("Aceptar", new DialogInterface.OnClickListener() {
+        AlertDialog dialog = new MaterialAlertDialogBuilder(getContext()).setTitle("Cerrar sesión")
+                .setMessage("¿Está seguro que desea cerrar sesión?").setPositiveButton("Aceptar", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         salesPresenter.logout();
@@ -609,7 +577,8 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
         navController.navigate(SalesViewDirections.actionSalesViewToLoginView());
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.N)
+
+    @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     public void onClick(View v) {
         switch (v.getId()){
@@ -620,58 +589,97 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
                     if(isLoading==false && this.printerConnected==true) {
                         // connect to printer
                         printerNoConnected();
-                        bluetoothDeviceSerializable.setPrinterConnected(false);
                         this.printerConnected=false;
-                        this.printerUtil.desconect();
-                        this.printerUtil=null;
+                        if(this.printerUtil!=null) {
+                            this.printerUtil.desconect();
+                            this.printerUtil = null;
+                        }
                     }else if(isLoading==false && this.printerConnected==false){
                         activatePrinter();
                     }
                 break;
-            case R.id.printResguardButton:
-                    if(isLoading==false && this.printerConnected==true) {
-                        this.circularProgressIndicator.setVisibility(View.VISIBLE);
-                        isLoading=true;
-                        this.salesPresenter.getResguardedTicket();
-                    }else{
-                        genericMessage("Impresora no econtrada.","Favor de conectar una impresora");
+            case R.id.devolutionsButton:
+                    if(isLoading==false) {
+                        if(devolutions==false) {
+                                listSales.setAdapter(null);
+                                findSalesToDevolution();
+                                devolutionButton.setText("Historial");
+                                devolutions=true;
+                        }else{
+                            listSales.setAdapter(null);
+                            devolutionButton.setText("Devoluciones");
+
+                            this.fillSalesOffline(dateSelected);
+                            devolutions=false;
+                        }
                     }
                 break;
             case R.id.buttonCobranzaHistory:
-                System.out.println("Cobranza: "+cobranza);
-                System.out.println("IsLoading: "+isLoading);
-                if(!isLoading) {
-                    if (!cobranza) {
-                        this.isLoading=true;
-                        cobranza=true;
-                        sales=null;
-                        this.buttonCobranzaHistory.setText("Historial");
-                        if(!modeOffline) {
-                            this.salesPresenter.getAllSaleDebtsOfDay();
-                        }else{
-                            this.fillSalesDebOffline();
-                        }
-                    } else {
-                        this.isLoading=true;
-                        cobranza=false;
-                        sales=null;
-                        this.buttonCobranzaHistory.setText("Cobranza");
-                        if(!modeOffline) {
-                            this.salesPresenter.getAllSaleOfDay();
-                        }else{
-                            this.fillSalesOffline();
-                        }
-                    }
+
+                if(cobranza) {
+                    System.out.println("Ventas habilitada");
+                    fillSalesOffline(dateSelected);
+                    cobranza=false;
+                    buttonCobranzaHistory.setText("COBRANZA");
+                }else{
+                    System.out.println("Cobranza deshabilitada");
+                    fillSalesDebOffline(dateSelected);
+                    cobranza=true;
+                    buttonCobranzaHistory.setText("HISTORIAL");
                 }
+
                 break;
             case R.id.buscarClienteButton:
                 search();
                 break;
+            case R.id.changeDateButton:
+                showDatePicker();
+                break;
         }
+    }
+    Map<String,String> mapDevolutionsStatus;
+    void findSalesToDevolution(){
+        executor.execute(new  Runnable() {
+
+            @RequiresApi(api = Build.VERSION_CODES.O)
+            @Override
+            public void run() {
+                String dateParsed1 = dateSelected + "T00:00:00.000Z";
+                String dateParsed2 = dateSelected + "T23:59:59.000Z";
+                List<Sale> sales = viewModelStore.getAppDatabase().devolutionRequestDao().getAllBetweenDate(dateParsed1,dateParsed2);
+                mapDevolutionsStatus= new HashMap<>();
+                for(Sale sale : sales) {
+                    DevolutionRequest devolutionRequest = viewModelStore.getAppDatabase().devolutionRequestDao().findDevolutionRequestByFolioRegister(sale.folio);
+                    mapDevolutionsStatus.put(sale.folio,devolutionRequest.status);
+                }
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if(sales.size()>0){
+                            fillSalesToDevolution(sales);
+                        }
+                    }
+                });
+            }
+        });
+
+    }
+    void fillSalesToDevolution(List<Sale> sales){
+        SaleDevolutionAdapter adapter = new SaleDevolutionAdapter(sales,getContext(),this,mapDevolutionsStatus);
+        listSales.setAdapter(null);
+        listSales.setAdapter(adapter);
+    }
+
+    void goToDevolutionSale(String folio){
+        navController.navigate(SalesViewDirections.actionSalesViewToDevolutionsView(folio,"CREATE"));
+    }
+    @Override
+    public void goToDevolutionSaleToView(String folio){
+        navController.navigate(SalesViewDirections.actionSalesViewToDevolutionsView(folio,"EDIT"));
     }
 
     Boolean cobranza=false;
-
+    Boolean devolutions=false;
     void printerNoConnected(){
         ImageViewCompat.setImageTintList(printerButton, ColorStateList.valueOf(Color.parseColor("#BDB5B5")));
     }
@@ -682,22 +690,22 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
 
     @Override
     public void setSalesOfDay(SaleResponseDTO[] salestemp) {
-        isLoading=false;
+        //isLoading=false;
         if(sales==null){
             sales=salestemp;
         }
         listSales.removeAllViewsInLayout();
         System.out.println("Sales length: "+sales.length);
-        SaleListAdapter saleListAdapter = new SaleListAdapter(getContext(),salestemp,salesPresenter,modeOffline);
+        SaleListAdapter saleListAdapter = new SaleListAdapter(getContext(),salestemp,salesPresenter,modeOffline,this);
         listSales.setAdapter(saleListAdapter);
-        this.salesPresenter.checkAccumulated();
+
     }
 
     @Override
     public void setSalesDebtsOfDay(SaleResponseDTO[] salestemp) {
-        isLoading=false;
+        //isLoading=false;
         if(sales==null){
-            sales=salestemp;
+            sales = salestemp;
         }
         listSales.removeAllViewsInLayout();
         SaleDebtListAdapter saleListAdapter = new SaleDebtListAdapter(getContext(),salestemp,salesPresenter);
@@ -721,80 +729,204 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
         this.printTicketSale(folio);
     }
 
+    String statusDevolutionToEndDay="";
+    String devolutionSubSalesToReprint="";
     @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     public void printTicketSale(String folio){
-        SaleOfflineMode saleOfflineMode = null;
-        SaleDTO saleDTO =null;
-        if(viewModelStore.getStore().getDebts()!=null){
-            for(SaleOfflineMode sub : viewModelStore.getStore().getDebts()){
-                if(sub.getFolio().equals(folio)){
-                    saleOfflineMode=sub;
+        statusDevolutionToEndDay="";
+        devolutionSubSalesToReprint="";
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                Sale sale = viewModelStore.getAppDatabase().saleDao().getByFolio(folio);
+                DevolutionRequest devolutionRequest = viewModelStore.getAppDatabase().devolutionRequestDao().findDevolutionRequestByFolioRegister(sale.folio);
+                List<SubSale> subSales = viewModelStore.getAppDatabase().subSalesDao().getSubSalesBySale(folio);
+                Map<String,Product> productsMap = new HashMap<>();
+                for(SubSale subSale : subSales){
+                    Product product = viewModelStore.getAppDatabase().productDao().getProductByKey(subSale.productKey);
+                    productsMap.put(subSale.productKey,product);
                 }
-            }
-        }
-
-        if(viewModelStore.getStore().getSales()!=null) {
-            for (SaleOfflineMode sale : viewModelStore.getStore().getSales()) {
-                if (sale.getFolio().equals(folio)) {
-                    saleOfflineMode = sale;
+                if(devolutionRequest!=null) {
+                    sale.devolutionId = devolutionRequest.devolutionRequestId;
+                    String devolutionStr="";
+                    if(devolutionRequest.status.equals("PENDING")){
+                        devolutionStr="PENDIENTE";
+                    }else if(devolutionRequest.status.equals("DECLINED")){
+                        devolutionStr="RECHAZADA";
+                    }else if(devolutionRequest.status.equals("ACCEPTED")){
+                        devolutionStr="ACEPTADA";
+                    }
+                    statusDevolutionToEndDay=devolutionStr;
                 }
-            }
-        }
-        if(viewModelStore.getStore().getSalesMaked()!=null){
-        for(SaleDTO sale : viewModelStore.getStore().getSalesMaked()){
-            if(sale.getFolio().equals(folio)){
-                saleDTO=sale;
-            }
-        }
-        }
-
-        if(saleDTO==null && saleOfflineMode==null){
-            Long saleId = null;
-            for(SaleResponseDTO item : sales){
-                if(item.getFolio().equals(folio)){
-                    saleId=item.getSaleId();
+                if(devolutionRequest!=null ) {
+                    if( devolutionRequest.status.equals("ACCEPTED")) {
+                        devolutionSubSalesToReprint += "PRODUCTO DEVUELTO: \n";
+                    }else if(devolutionRequest.status.equals("PENDING")){
+                        devolutionSubSalesToReprint += "PRODUCTO A DEVOLVER: \n";
+                    }else if(devolutionRequest.status.equals("DECLINED")){
+                        devolutionSubSalesToReprint += "PRODUCTO NO DEVUELTO: \n";
+                    }
+                    for(SubSale subSale : subSales){
+                        List<DevolutionSubSale> devolutionSubSales = viewModelStore.getAppDatabase().devolutionSubSaleDao().findAllDevolutionSubSaleBySubSaleId(subSale.subSaleId);
+                        Float toDevolution=Float.parseFloat("0");
+                        for(DevolutionSubSale devolutionSubSale1 : devolutionSubSales){
+                            System.out.println("SubDevolutionId: "+devolutionSubSale1.quantity);
+                            toDevolution+=devolutionSubSale1.quantity;
+                        }
+                        devolutionSubSalesToReprint+=subSale.productName+" "+subSale.productPresentationType+"\n"+(subSale.quantity-toDevolution)+" "+subSale.uniMed+"\n";
+                        if(devolutionRequest.status.equals("ACCEPTED")) {
+                            subSale.price = (subSale.price / subSale.quantity) * toDevolution;
+                            subSale.quantity = toDevolution;
+                        }
+                    }
+                    devolutionSubSalesToReprint+="MOTIVO: \n"+devolutionRequest.description;
                 }
-            }
-            if(saleId!=null) {
-                salesPresenter.getTicket(saleId);
-            }
-        }
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if(sale!=null){
+                            doTicketSaleOffline(sale,subSales,productsMap);
+                        }
+                    }
+                });
 
-        if(saleDTO!=null){
-            doTicketSaleOffline(saleDTO);
-        }else if(saleOfflineMode!=null){
-            SaleDTO saleDTO1= new SaleDTO();
-            saleDTO1.setClientName(saleOfflineMode.getClientName());
-            saleDTO1.setStatusStr(saleOfflineMode.getStatusStr());
-            saleDTO1.setSellerId(saleOfflineMode.getSellerId());
-            saleDTO1.setKeyClient(Integer.parseInt(saleOfflineMode.getKeyClient().toString()));
-            saleDTO1.setTypeSale(saleOfflineMode.getTypeSale());
-            saleDTO1.setCredit(saleOfflineMode.getCredit());
-            saleDTO1.setDays(8);
-            saleDTO1.setPayed(saleOfflineMode.getPayed());
-            saleDTO1.setAmount(saleOfflineMode.getAmount());
-            saleDTO1.setFolio(saleOfflineMode.getFolio());
-            saleDTO1.setStatus(saleOfflineMode.getStatus());
-            List<ProductSaleDTO> productSaleDTOS = saleOfflineMode.getProducts().stream().map(product->{
-                ProductSaleDTO productSaleDTO = new ProductSaleDTO();
-                productSaleDTO.setWeightOriginal(product.getWeightStandar());
-                productSaleDTO.setTypeUnid(product.getType());
-                productSaleDTO.setProductPresentation(product.getProductPresentationType());
-                productSaleDTO.setProductName(product.getProductName());
-                productSaleDTO.setQuantity(product.getQuantity());
-                productSaleDTO.setPrice(product.getPrice());
-                productSaleDTO.setProductKey(product.getProductKey());
-                return productSaleDTO;
-            }).collect(Collectors.toList());
-            saleDTO1.setProducts(productSaleDTOS);
-            doTicketSaleOffline(saleDTO1);
-        }
-        /*System.out.println("Se encontro la venta en linea: "+(saleOfflineMode!=null));
-        System.out.println("Se encontro la venta en offline: "+(saleDTO!=null));*/
+            }
+        });
     }
 
+    void doTicketSaleOffline(Sale sale,List<SubSale> subSales,Map<String,Product> productMap){
+        Calendar calendar = Calendar.getInstance();
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd h:mm a");
+        String dateParsed = dateFormat.format(calendar.getTime());
+        String ticket = "ROVIANDA SAPI DE CV\nAV.1 #5 Esquina Calle 1\nCongregación Donato Guerra\nParque Industrial Valle de Orizaba\nC.P 94780\nRFC 8607056P8\nTEL 272 72 46077, 72 4 5690\n";
+        ticket+="Pago en una Sola Exhibición\nLugar de Expedición: Ruta\nNota No. "+sale.folio+"\nFecha: "+dateParsed+"\n\n";
+        ticket+="Vendedor:"+viewModelStore.getStore().getUsername()+"\n";
+        if(sale.statusStr.equals("CANCELED")){
+            if(sale.cancelAutorized!=null && sale.cancelAutorized.equals("true")){
+                ticket+="\nNOTA CANCELADA";
+            }else{
+                ticket+="\nCANCELACION SIN AUTORIZAR";
+            }
+        }
+        if(sale.devolutionId!=null){
+            ticket+="\nDEVOLUCIÓN "+statusDevolutionToEndDay;
+        }
+        ticket+="\nCliente: "+sale.clientName+"\nClave: "+sale.keyClient+"\n";
+        ticket+="Tipo de venta: "+ sale.typeSale +"\n--------------------------------\nDESCR   PRECIO   CANT  IMPU.   IMPORTE \n--------------------------------\n";
+        Float total = Float.parseFloat("0");
+        Float totalImp = Float.parseFloat("0");
+        for(SubSale product : subSales){
+            Product product1 = productMap.get(product.productKey);
+            Float singleIva = Float.parseFloat("0");
+            Float singleIeps = Float.parseFloat("0");
+            Float amount = (product.price/product.quantity);
 
+            switch (product1.esqKey){
+                case 1:
+                        singleIva=this.extractIva(amount);
+                    break;
+                case 4:
+                        singleIva=this.extractIva(amount);
+                        singleIeps=this.extractIeps((amount-this.extractIva(amount)),Float.parseFloat("8"));
+                    break;
+                case 5:
+                    singleIva=this.extractIva(amount);
+                    singleIeps=this.extractIeps((amount-this.extractIva(amount)),Float.parseFloat("25"));
+                    break;
+                case 6:
+                    singleIva=this.extractIva(amount);
+                    singleIeps=this.extractIeps((amount-this.extractIva(amount)),Float.parseFloat("50"));
+                    break;
+            }
+            Float singlePrice=amount-(singleIva+singleIeps);
+            totalImp+=((singleIva*product.quantity)+(singleIeps*product.quantity));
+            if(product.uniMed.equals("PZ")) {
+                ticket += product.productName + " " + product.productPresentationType + "\n" + String.format("%.02f",singlePrice) +" "+ Math.round(product.quantity) + "pz " +String.format("%.02f",(singleIeps+singleIva)*product.quantity)  +" "+String.format("%.02f",product.price) +"\n";
+            }else{
+                ticket += product.productName + " " + product.productPresentationType + "\n"+ Math.round(singlePrice) +" " + product.quantity + "kg "+ String.format("%.02f",(singleIeps+singleIva)*product.quantity) +" "+String.format("%.02f",product.price)+ "\n";
+            }
+            total+=product.price;
+        }
+        ticket+="--------------------------------\n";
+        ticket+="SUB TOTAL: $"+String.format("%.02f",total-totalImp)+"\n";
+        ticket+="IMPUESTO:  $"+String.format("%.02f",totalImp)+"\n";
+        ticket+="TOTAL: $ "+String.format("%.02f",total)+"\n\n\n";
+        //ticket+="ticket+=`Piezas:  \n\n*** GRACIAS POR SU COMPRA ***\n";
+        if(sale.typeSale.equals("CREDITO")){
+            ticket+="Esta venta se incluye en la\nventa global del dia, por el\npresente reconozco deber\ny me obligo a pagar en esta\nciudad y cualquier otra que\nse me de pago a la orden de\nROVIANDA S.A.P.I. de C.V. la\ncantidad que se estipula como\ntotal en el presente documento.\n-------------------\n      Firma\n\n";
+            ticket+=(sale.status)?"\nSE ADEUDA\n\n\n\n\n":"\nPAGADO\n\n\n\n\n";
+        }
+        ticket+=devolutionSubSalesToReprint;
+        reprintTicket(ticket);
+
+    }
+
+    Float extractIva(Float amount){
+        return (amount/116)*16;
+    }
+
+    Float extractIeps(Float amount,Float percent){
+        return (amount/(100+percent))*percent;
+    }
+
+    /*void setSaleDetails(Long saleId,String folio){
+        SaleDTO saleDTO=new SaleDTO();
+        executor.execute(new  Runnable() {
+            @RequiresApi(api = Build.VERSION_CODES.N)
+            @Override
+            public void run() {
+
+                Sale sale=viewModelStore.getAppDatabase().saleDao().getBySaleId(Integer.parseInt(saleId.toString()));
+                if(sale==null){
+                    sale = viewModelStore.getAppDatabase().saleDao().getByFolio(folio);
+                }
+                if(sale!=null) {
+                    saleDTO.setAmount(sale.amount);
+                    saleDTO.setClientName(sale.clientName);
+                    saleDTO.setCredit(sale.credit);
+                    saleDTO.setDate(sale.date);
+                    saleDTO.setFolio(sale.folio);
+                    saleDTO.setKeyClient(sale.keyClient);
+                    saleDTO.setPayed(sale.payed);
+                    saleDTO.setSellerId(sale.sellerId);
+                    saleDTO.setStatus(sale.status);
+                    saleDTO.setStatusStr(sale.statusStr);
+                    saleDTO.setTypeSale(sale.typeSale);
+                    saleDTO.setClientId(sale.clientId);
+                    List<SubSale> subSales = viewModelStore.getAppDatabase().subSalesDao().getSubSalesBySale(folio);
+                    List<ProductSaleDTO> productSaleDTOS = new ArrayList<>();
+                    for(SubSale subSale : subSales){
+                        ProductSaleDTO productSaleDTO = new ProductSaleDTO();
+                        productSaleDTO.setPresentationId(subSale.presentationId);
+                        productSaleDTO.setPrice(subSale.price);
+                        productSaleDTO.setProductId(subSale.productId);
+                        productSaleDTO.setProductKey(subSale.productKey);
+                        productSaleDTO.setProductName(subSale.productName);
+                        productSaleDTO.setProductPresentation(subSale.productPresentationType);
+                        productSaleDTO.setQuantity(subSale.quantity);
+                        productSaleDTO.setTypeUnid(subSale.uniMed);
+                        productSaleDTO.setWeightOriginal(subSale.weightStandar);
+                        productSaleDTOS.add(productSaleDTO);
+                    }
+                    saleDTO.setProducts(productSaleDTOS);
+                }
+
+
+
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                            if(saleDTO.getFolio()!=null) {
+                                doTicketSaleOffline(saleDTO);
+                            }
+                    }
+                });
+            }
+        });
+    }*/
+
+/*
     @RequiresApi(api = Build.VERSION_CODES.N)
     void doTicketSaleOffline(SaleDTO saleDTO){
         Calendar calendar = Calendar.getInstance();
@@ -827,40 +959,34 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
         }
         reprintTicket(ticket);
 
-    }
+    }*/
 
-    @RequiresApi(api = Build.VERSION_CODES.N)
+
+    @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     public void cancelSale(String folio) {
-        if(viewModelStore.getStore().getSales()!=null) {
-            viewModelStore.getStore().getSales().stream().map(sale -> {
-                if (sale.getFolio().equals(folio)) {
-                    sale.setStatusStr("CANCELED");
-                    sale.setStatus(false);
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                Sale sale = viewModelStore.getAppDatabase().saleDao().getByFolio(folio);
+                if(sale!=null && !sale.statusStr.equals("CANCELED")){
+                    sale.statusStr="CANCELED";
+                    sale.modified=true;
+                    sale.status=false;
+                    viewModelStore.getAppDatabase().saleDao().updateSale(sale);
+                    viewModelStore.getAppDatabase().debtDao().deleteDebtForDeleteSale(sale.folio);
                 }
-                return sale;
-            }).collect(Collectors.toList());
-        }
-        if(viewModelStore.getStore().getSalesMaked()!=null) {
-            viewModelStore.getStore().getSalesMaked().stream().map(sale -> {
-                if (sale.getFolio().equals(folio)) {
-                    sale.setStatusStr("CANCELED");
-                    sale.setStatus(false);
-                }
-                return sale;
-            }).collect(Collectors.toList());
-        }
-    if(viewModelStore.getStore().getDebts()!=null) {
-        viewModelStore.getStore().getDebts().stream().map(sub -> {
-            if (sub.getFolio().equals(folio)) {
-                sub.setStatusStr("CANCELED");
-                sub.setStatus(false);
+
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        fillSalesOffline(dateSelected);
+                    }
+                });
+
             }
-            return sub;
-        }).collect(Collectors.toList());
-    }
-        setModeOffline(viewModelStore.getStore());
-        fillSalesOffline();
+        });
+
     }
 
 
@@ -926,11 +1052,9 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
                 if (intentsToClose >= 2) {
                     intentsToClose = 0;
                     if(cobranza) {
-                        if(!modeOffline) {
-                            salesPresenter.getAllSaleDebtsOfDay();
-                        }else{
-                            fillSalesDebOffline();
-                        }
+
+                            fillSalesDebOffline(dateSelected);
+
                     }
                     dialog.dismiss();
 
@@ -1038,7 +1162,7 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
                     public void onClick(DialogInterface dialog, int which) {
                         System.out.println("Se cancelo");
                         dialog.cancel();
-                        genericMessage("Error en la conexión","No se pudo conectar a una impresora.");
+                        genericMessage("Error en enlace","No se pudo enlazar a una impresora.");
                         circularProgressIndicator.setVisibility(View.GONE);
                         isLoading=false;
                     }
@@ -1055,19 +1179,29 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
                             printerConnected = printerUtil.connectWithPrinter(printer);
                             circularProgressIndicator.setVisibility(View.GONE);
                             isLoading=false;
+
                             if(printerConnected==true) {
 
-                                genericMessage("Conexión exitosa","Se conecto a la impresora: "+printer.getName());
+                                genericMessage("Enlace exitoso","Se enlazo a la impresora: "+printer.getName());
                                 printerConnected();
                             }else{
-                                genericMessage("Error en la conexión","No se pudo conectar a una impresora.");
+                                genericMessage("Error en enlace","No se pudo enlazar a una impresora.");
                                 printerNoConnected();
                             }
-                            if(bluetoothDeviceSerializable==null) {
-                                bluetoothDeviceSerializable = new BluetoothDeviceSerializable();
-                            }
-                            bluetoothDeviceSerializable.setBluetoothDevice(printer);
-                            bluetoothDeviceSerializable.setPrinterConnected(true);
+                            executor.execute(new Runnable() {
+                                @Override
+                                public void run() {
+                                    viewModelStore.getAppDatabase().userDataInitialDao().updatePrinterAddress(viewModelStore.getStore().getSellerId(),printer.getAddress());
+                                    handler.post(new Runnable() {
+
+                                        @Override
+                                        public void run() {
+                                            System.out.println("Printer saved");
+                                        }
+                                    });
+                                }
+                            });
+
                         }
                     }
                 }).setSingleChoiceItems(bluetoothDevices, checkedItem, new DialogInterface.OnClickListener() {
@@ -1086,7 +1220,7 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
     int selectionPay=0;
     Boolean paying=false;
     Float amount;
-    String[] contadoOptions = {"Efectivo","Transferencia","Cheque"};
+    String[] contadoOptions = {"EFECTIVO","TRANSFERENCIA","CHEQUE"};
     void showOptionsPayed(SaleResponseDTO sale){
         if(!paying) {
             String[] selectMode = contadoOptions;
@@ -1145,13 +1279,9 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
                     System.out.println("acepto el cobró");
                     isLoading=true;
                     circularProgressIndicator.setVisibility(View.VISIBLE);
-                    PayDebtsModel payDebtsModel = new PayDebtsModel();
-                    payDebtsModel.setTypePayed(contadoOptions[selectionPay]);
-                    if(!modeOffline) {
-                        salesPresenter.doPayDebt(sale.getSaleId(), payDebtsModel);
-                    }else{
-                        setSalePayed(sale.getFolio(),contadoOptions[selectionPay]);
-                    }
+                    //PayDebtsModel payDebtsModel = new PayDebtsModel();
+                    //payDebtsModel.setTypePayed(contadoOptions[selectionPay]);
+                    setSalePayed(sale.getFolio(),contadoOptions[selectionPay]);
                 }else{
                     genericMessage("Venta no realizada","No se asignó un monto de pago ó se canceló el cobro");
                 }
@@ -1168,37 +1298,52 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
     }
     @RequiresApi(api = Build.VERSION_CODES.N)
     void setSalePayed(String folio, String typePay){
-        if(viewModelStore.getStore().getDebts()!=null) {
-            viewModelStore.getStore().getDebts().stream().map(deb -> {
-                if (deb.getFolio().equals(folio)) {
-                    deb.setStatus(false);
-                    //deb.setTypeSale(typePay);
+
+        executor.execute(new Runnable() {
+            @RequiresApi(api = Build.VERSION_CODES.O)
+            @Override
+            public void run() {
+
+                Sale  sale = viewModelStore.getAppDatabase().saleDao().getByFolio(folio);
+                List<SubSale> subSales = viewModelStore.getAppDatabase().subSalesDao().getSubSalesBySale(folio);
+                Map<String,Product> productsMap = new HashMap<>();
+                for(SubSale subSale : subSales){
+                    Product product = viewModelStore.getAppDatabase().productDao().getProductByKey(subSale.productKey);
+                    productsMap.put(subSale.productKey,product);
                 }
-                return deb;
-            }).collect(Collectors.toList());
-        }
-        if(viewModelStore.getStore().getSalesMaked()!=null) {
-            viewModelStore.getStore().getSalesMaked().stream().map(sale -> {
-                if (sale.getFolio().equals(folio)) {
-                    //sale.setTypeSale(typePay);
-                    sale.setStatus(false);
+                if(sale!=null && sale.status){
+                    sale.status=false;
+                    sale.modified=true;
+                    viewModelStore.getAppDatabase().saleDao().updateSale(sale);
+                    Debt checkAlreadyExist = viewModelStore.getAppDatabase().debtDao().getDebtByFolio(folio);
+                    if(checkAlreadyExist==null) {
+                        Debt debt = new Debt();
+                        ZonedDateTime zdt = ZonedDateTime.now();
+                        zdt=zdt.minusHours(5);
+                        String nowAsISO = zdt.format(DateTimeFormatter.ISO_INSTANT);
+                        debt.createAt = nowAsISO;
+                        debt.folio = sale.folio;
+                        debt.payedType = typePay;
+                        debt.solped = true;
+                        debt.sincronized=false;
+                        debt.deleted=false;
+                        viewModelStore.getAppDatabase().debtDao().insertDebts(debt);
+                    }
                 }
-                return sale;
-            }).collect(Collectors.toList());
-        }
-        if(viewModelStore.getStore().getSales()!=null) {
-            viewModelStore.getStore().getSales().stream().map(sale -> {
-                if (sale.getFolio().equals(folio)) {
-                    sale.setStatus(false);
-                    //sale.setTypeSale(typePay);
-                }
-                return sale;
-            }).collect(Collectors.toList());
-        }
+
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                            doTicketSaleOffline(sale,subSales,productsMap);
+                    }
+                });
+
+            }
+        });
+
         isLoading=false;
         circularProgressIndicator.setVisibility(View.GONE);
-        setModeOffline(viewModelStore.getStore());
-        printTicketSale(folio);
+
     }
 
     @Override
@@ -1220,5 +1365,77 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
                 = (ConnectivityManager) getActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
         return activeNetworkInfo != null && activeNetworkInfo.isConnected();
+    }
+
+    AlertDialog optionsDialog;
+
+    @Override
+    public void showOptionsSale(SaleResponseDTO sale){
+        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+
+        LayoutInflater layoutInflater = LayoutInflater.from(getContext());
+        View view =layoutInflater.inflate(R.layout.option_sales_modal,null);
+        builder.setView(view);
+        optionsDialog=builder.create();
+        optionsDialog.show();
+        Button reprintButton = view.findViewById(R.id.optionReprintButton);
+        Button cancelButton = view.findViewById(R.id.optionCancelButton);
+        Button devolutionButton = view.findViewById(R.id.optionDevolutionButton);
+        if(sale.getDevolutionid()==null) {
+            if (sale.getStatusStr().equals("CANCELED") && sale.getCancelAutorized()!=null && sale.getCancelAutorized().equals("true")) {
+                cancelButton.setVisibility(View.GONE);
+                devolutionButton.setVisibility(View.GONE);
+            }else if(sale.getStatusStr().equals("CANCELED") && sale.getCancelAutorized()==null){
+                cancelButton.setVisibility(View.GONE);
+                devolutionButton.setVisibility(View.GONE);
+            }
+        }else{
+            if(sale.getDevolutionStatus().equals("PENDING")){
+               devolutionButton.setVisibility(View.GONE);
+               cancelButton.setVisibility(View.GONE);
+            }
+        }
+
+        reprintButton.setOnClickListener(new View.OnClickListener() {
+            @RequiresApi(api = Build.VERSION_CODES.N)
+            @Override
+            public void onClick(View v) {
+                optionsDialog.dismiss();
+                checkPrinterConnectionOffline(sale.getFolio());
+            }
+        });
+        cancelButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                optionsDialog.dismiss();
+                cancelSale(sale.getSaleId(), sale.getFolio());
+            }
+        });
+        devolutionButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                optionsDialog.dismiss();
+                goToDevolutionSale(sale.getFolio());
+            }
+        });
+    }
+
+    public void cancelSale(Long saleId,String folio){
+
+        AlertDialog dialog = new MaterialAlertDialogBuilder(getContext()).setTitle("Cancelación de venta")
+                .setMessage("¿Está seguro que desea cancelar la venta?").setPositiveButton("Aceptar", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+
+                        salesPresenter.cancelSaleOffline(folio);
+
+                    }
+                }).setNegativeButton("Cancelar",new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog,int which) {
+                        isLoading=false;
+                    }
+                }).create();
+        dialog.show();
     }
 }

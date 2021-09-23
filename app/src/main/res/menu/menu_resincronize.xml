@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/file"
+        android:title="Opciones avanzadas" >
+        <!-- "file" submenu -->
+        <menu>
+            <item android:id="@+id/resincronize"
+                android:title="Re-Sincronizar" />
+        </menu>
+    </item>
+</menu>

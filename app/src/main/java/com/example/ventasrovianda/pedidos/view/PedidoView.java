@@ -2,12 +2,17 @@ package com.example.ventasrovianda.pedidos.view;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
+import android.net.ConnectivityManager;
+import android.net.Network;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
@@ -41,6 +46,7 @@ import com.example.ventasrovianda.Utils.Models.OrderPresentationDetails;
 import com.example.ventasrovianda.Utils.PrinterUtil;
 import com.example.ventasrovianda.Utils.ViewModelStore;
 
+import com.example.ventasrovianda.Utils.bd.entities.UserDataInitial;
 import com.example.ventasrovianda.pedidos.Adapters.AdapterItemsOrders;
 import com.example.ventasrovianda.pedidos.presenter.PedidoPresenter;
 import com.example.ventasrovianda.pedidos.presenter.PedidoPresenterContract;
@@ -51,6 +57,8 @@ import com.google.android.material.progressindicator.CircularProgressIndicator;
 
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 public class PedidoView extends Fragment implements View.OnClickListener,PedidoViewContract{
@@ -82,6 +90,7 @@ public class PedidoView extends Fragment implements View.OnClickListener,PedidoV
     BluetoothDevice printerDevice=null;
     BluetoothAdapter bluetoothAdapter=null;
 
+    @RequiresApi(api = Build.VERSION_CODES.N)
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -119,17 +128,7 @@ public class PedidoView extends Fragment implements View.OnClickListener,PedidoV
         this.eatTimeButton.setVisibility(View.INVISIBLE);
         this.eatTimeButton.setOnClickListener(this);
 
-        bluetoothDeviceSerializable=PedidoFormArgs.fromBundle(getArguments()).getPrinterDevice();
-        if(bluetoothDeviceSerializable!=null){
-            this.printerConnected = bluetoothDeviceSerializable.isPrinterConnected();
-            if(this.printerConnected){
-                printerConnected();
-                if(printerUtil==null){
-                    printerUtil = new PrinterUtil(getContext());
-                }
-                printerDevice = bluetoothDeviceSerializable.getBluetoothDevice();
-            }
-        }
+
         homeButton.setOnNavigationItemSelectedListener(new BottomNavigationView.OnNavigationItemSelectedListener() {
             @Override
             public boolean onNavigationItemSelected(@NonNull MenuItem item) {
@@ -153,6 +152,7 @@ public class PedidoView extends Fragment implements View.OnClickListener,PedidoV
                 return false;
             }
         });
+        checkInternetConnection();
         return view;
     }
 
@@ -160,10 +160,41 @@ public class PedidoView extends Fragment implements View.OnClickListener,PedidoV
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         viewModelStore = new ViewModelProvider(requireActivity()).get(ViewModelStore.class);
-            this.presenter.getOrders();
+            this.presenter.getOrders(viewModelStore.getStore().getSellerId());
+        checkIfPrinterConfigured();
     }
 
+    void checkIfPrinterConfigured(){
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
 
+                UserDataInitial userDataInitial = viewModelStore.getAppDatabase().userDataInitialDao().getDetailsInitialByUid(viewModelStore.getStore().getSellerId());
+
+
+                handler.post(new Runnable() {
+                    @RequiresApi(api = Build.VERSION_CODES.N)
+                    @Override
+                    public void run() {
+                        if(userDataInitial!=null && userDataInitial.printerMacAddress!=null){
+                            BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+                            Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
+                            for(BluetoothDevice bluetoothDevice :pairedDevices){
+                                if(bluetoothDevice.getAddress().equals(userDataInitial.printerMacAddress)){
+                                    printerDevice=bluetoothDevice;
+                                    printerConnected=true;
+                                    printerConnected();
+                                }
+                            }
+                            if(!printerConnected){
+                                printerNoConnected();
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    }
 
 
     void goToCotizaciones(){
@@ -208,23 +239,45 @@ public class PedidoView extends Fragment implements View.OnClickListener,PedidoV
                 logout();
                 break;
             case R.id.nuevoPedido:
-
-                    goToForm();
+                    if(isConnected) {
+                        goToForm();
+                    }else{
+                        genericMessage("Sin conexión","Debes tener internet");
+                    }
 
                 break;
             case R.id.printerButton:
                 if(isLoading==false && this.printerConnected==true) {
                     // connect to printer
                     printerNoConnected();
-                    bluetoothDeviceSerializable.setPrinterConnected(false);
+
                     this.printerConnected=false;
-                    this.printerUtil.desconect();
-                    this.printerUtil=null;
+                    if(this.printerUtil!=null){
+                        this.printerUtil.desconect();
+                        this.printerUtil=null;
+                    }
                 }else if(isLoading==false && this.printerConnected==false){
                     activatePrinter();
                 }
                 break;
         }
+    }
+    Boolean isConnected=false;
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    void checkInternetConnection(){
+        ConnectivityManager connectivityManager = (ConnectivityManager) getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+
+        connectivityManager.registerDefaultNetworkCallback(new ConnectivityManager.NetworkCallback(){
+            @Override
+            public void onAvailable(@NonNull Network network) {
+                isConnected=true;
+            }
+
+            @Override
+            public void onLost(@NonNull Network network) {
+                isConnected=false;
+            }
+        });
     }
 
     @Override
@@ -460,9 +513,11 @@ public class PedidoView extends Fragment implements View.OnClickListener,PedidoV
         }
     }
 
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    Handler handler = new Handler(Looper.getMainLooper());
+
     int selectIndexPrinter;
     @RequiresApi(api = Build.VERSION_CODES.N)
-
     public void findPrinter(Set<BluetoothDevice> devices) {
         this.circularProgressIndicator.setVisibility(View.VISIBLE);
         isLoading=true;
@@ -491,9 +546,7 @@ public class PedidoView extends Fragment implements View.OnClickListener,PedidoV
                         if(selectIndexPrinter!=-1) {
                             which=selectIndexPrinter;
                             System.out.println("Estableciendo conexión");
-
                             printerDevice = bluetoothDevicesMapped.get(which);
-
                             printerConnected = printerUtil.connectWithPrinter(printerDevice);
                             circularProgressIndicator.setVisibility(View.GONE);
                             isLoading=false;
@@ -505,11 +558,19 @@ public class PedidoView extends Fragment implements View.OnClickListener,PedidoV
                                 genericMessage("Error en la conexión","No se pudo conectar a una impresora.");
                                 printerNoConnected();
                             }
-                            if(bluetoothDeviceSerializable==null) {
-                                bluetoothDeviceSerializable = new BluetoothDeviceSerializable();
-                            }
-                            bluetoothDeviceSerializable.setBluetoothDevice(printerDevice);
-                            bluetoothDeviceSerializable.setPrinterConnected(true);
+                            executor.execute(new Runnable() {
+                                @Override
+                                public void run() {
+                                    viewModelStore.getAppDatabase().userDataInitialDao().updatePrinterAddress(viewModelStore.getStore().getSellerId(),printerDevice.getAddress());
+                                    handler.post(new Runnable() {
+
+                                        @Override
+                                        public void run() {
+                                            System.out.println("Printer saved");
+                                        }
+                                    });
+                                }
+                            });
                         }
                     }
                 }).setSingleChoiceItems(bluetoothDevices, checkedItem, new DialogInterface.OnClickListener() {

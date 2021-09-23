@@ -14,6 +14,8 @@ import androidx.appcompat.app.AlertDialog;
 import com.example.ventasrovianda.R;
 import com.example.ventasrovianda.Utils.Models.SaleResponseDTO;
 import com.example.ventasrovianda.sales.presenter.SalePresenterContract;
+import com.example.ventasrovianda.sales.view.SaleViewContract;
+import com.example.ventasrovianda.sales.view.SalesView;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
@@ -23,11 +25,13 @@ public class SaleListAdapter extends BaseAdapter {
     SaleResponseDTO[] sales;
     SalePresenterContract presenter;
     Boolean modeOffline;
-    public SaleListAdapter(Context context, SaleResponseDTO[] sales, SalePresenterContract presenter,Boolean modeOffline){
+    SaleViewContract viewM;
+    public SaleListAdapter(Context context, SaleResponseDTO[] sales, SalePresenterContract presenter, Boolean modeOffline, SalesView viewM){
         this.context =context;
         this.sales =sales;
         this.presenter= presenter;
         this.modeOffline = modeOffline;
+        this.viewM=viewM;
     }
 
     @Override
@@ -55,70 +59,53 @@ public class SaleListAdapter extends BaseAdapter {
         TextView clientName = view.findViewById(R.id.clientSaleTextView);
         TextView amount = view.findViewById(R.id.amountSaletextView);
         TextView status = view.findViewById(R.id.statusSaleTextView);
-        MaterialButton cancelSale = view.findViewById(R.id.cancelSaleButton);
-        MaterialButton reprint = view.findViewById(R.id.reprintTickerButton);
-        reprint.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
+        MaterialButton optionsButton = view.findViewById(R.id.optionsButton);
 
-                if(!modeOffline) {
-                    presenter.verifyConnectionPrinterToGetTicket(sales[position].getSaleId());
-                }else{
-                    presenter.verifyConnectionPrinterToGetTicketOffline(sales[position].getFolio());
-                }
-            }
-        });
         folio.setText("Folio: "+this.sales[position].getFolio());
         clientName.setText("Cliente: "+this.sales[position].getClient().getName());
         amount.setText("$"+this.sales[position].getAmount());
         String statusStr="";
         System.out.println("Status:"+this.sales[position].getStatusStr());
-        if(this.sales[position].getStatusStr().equals("CANCELED")){
-            statusStr ="CANCELADO";
-            cancelSale.setVisibility(View.INVISIBLE);
-            cancelSale.setEnabled(false);
+        System.out.println("DevolutionId: "+this.sales[position].getDevolutionid());
+        System.out.println("Status autorized: "+this.sales[position].getCancelAutorized());
+        if(this.sales[position].getDevolutionid()==null) {
+            if (this.sales[position].getStatusStr().equals("CANCELED")) {
+                if (this.sales[position].getCancelAutorized() != null && this.sales[position].getCancelAutorized().equals("true")) {
+                    statusStr = "CANCELADO";
+                } else {
+                    System.out.println("Status de saleList: " + this.sales[position].getCancelAutorized());
+                    statusStr = "CANCEL. PEND.";
+                }
+            } else {
+                System.out.println("Status: " + this.sales[position].isStatus());
+                if ((this.sales[position].getTypeSale().equals("CREDITO") || this.sales[position].getTypeSale().equals("Crédito")) && this.sales[position].isStatus() == true) {
+                    statusStr = "ADEUDO";
+                } else {
+                    statusStr = "ACTIVO";
+                }
+            }
+            status.setText("Estatus: "+statusStr);
         }else{
-            System.out.println("Status: "+this.sales[position].isStatus());
-            if((this.sales[position].getTypeSale().equals("CREDITO") || this.sales[position].getTypeSale().equals("Crédito")) && this.sales[position].isStatus()==true){
-                statusStr="ADEUDO";
-            }else {
-                statusStr = "ACTIVO";
+            statusStr=this.sales[position].getDevolutionStatus();
+            if(statusStr.equals("PENDING")) {
+                status.setText("DEVOLUCIÓN: PENDIENTE");
+            }else if(statusStr.equals("DECLINED")){
+                status.setText("DEVOLUCIÓN: RECHAZADO");
+            }else if(statusStr.equals("ACCEPTED")){
+                status.setText("DEVOLUCIÓN: ACEPTADA");
             }
         }
 
-        status.setText("Estatus: "+statusStr);
+
         status.setTextColor(Color.GREEN);
-        cancelSale.setOnClickListener(new View.OnClickListener() {
+        optionsButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(isLoading==false) {
-                    isLoading = true;
-                    genericMessage(sales[position].getSaleId(),sales[position].getFolio());
-                }
+                    viewM.showOptionsSale(sales[position]);
             }
         });
 
-
         return view;
     }
-    public void genericMessage(Long saleId,String folio){
 
-        AlertDialog dialog = new MaterialAlertDialogBuilder(this.context).setTitle("Cancelación de venta")
-                .setMessage("¿Está seguro que desea cancelar la venta?").setPositiveButton("Aceptar", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        if(!modeOffline) {
-                            presenter.cancelSale(saleId);
-                        }else{
-                            presenter.cancelSaleOffline(folio);
-                        }
-                    }
-                }).setNegativeButton("Cancelar",new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog,int which) {
-                        isLoading=false;
-                    }
-                }).create();
-        dialog.show();
-    }
 }

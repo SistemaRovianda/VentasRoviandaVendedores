@@ -50,12 +50,13 @@
                     app:backgroundTint="#00FFFFFF" />
 
                 <Button
-                    android:id="@+id/printResguardButton"
+                    android:id="@+id/devolutionsButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Imprimir resguardo"
+                    android:text="Devoluciones"
                     android:textColor="#FFC107"
+                    android:visibility="visible"
                     app:backgroundTint="#00FFFFFF" />
             </LinearLayout>
 
@@ -74,6 +75,14 @@
                     android:text="Ventas: 2020-12-31"
                     android:textColor="#F3ECEC"
                     android:textSize="24sp" />
+
+                <ImageView
+                    android:id="@+id/changeDateButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    app:tint="#2A9A2F"
+                    app:srcCompat="@drawable/ic_edit_icon" />
             </LinearLayout>
 
             <LinearLayout

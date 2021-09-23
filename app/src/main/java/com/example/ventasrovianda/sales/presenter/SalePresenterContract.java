@@ -19,5 +19,5 @@ public interface SalePresenterContract {
     void doPayDebt(Long saleId, PayDebtsModel payDebtsModel);
     void checkPayDeb(SaleResponseDTO sale);
     void reprintPaydeb(SaleResponseDTO sale);
-    void checkAccumulated();
+
 }

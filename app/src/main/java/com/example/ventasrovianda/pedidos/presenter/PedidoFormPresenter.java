@@ -54,7 +54,7 @@ public class PedidoFormPresenter implements PedidoFormPresenterContract{
     public void findProduct(String code,String quantity) {
 
             Map<String, String> headers = new HashMap<>();
-            String userId = firebaseAuth.getCurrentUser().getUid();
+
             GsonRequest<ProductRoviandaToSale> productsRoviandaGet = new GsonRequest<ProductRoviandaToSale>
                     (url + "/rovianda/inve-product/" + code, ProductRoviandaToSale.class, headers,
                             new Response.Listener<ProductRoviandaToSale>() {
@@ -90,16 +90,16 @@ public class PedidoFormPresenter implements PedidoFormPresenterContract{
     }
 
     @Override
-    public void registerOrder(OrderDTO orderDTO) {
+    public void registerOrder(OrderDTO orderDTO,String uid) {
         Map<String,String> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
-        String userId = firebaseAuth.getCurrentUser().getUid();
+
         Calendar calendar = Calendar.getInstance();
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         String dateParsed = dateFormat.format(calendar.getTime());
         orderDTO.setDate(dateParsed);
         GsonRequest<String> saleRequets = new GsonRequest<String>
-                (url+"/rovianda/seller/order/"+userId,String.class,headers,
+                (url+"/rovianda/seller/order/"+uid,String.class,headers,
                         new Response.Listener<String>(){
                             @Override
                             public void onResponse(String  response) {

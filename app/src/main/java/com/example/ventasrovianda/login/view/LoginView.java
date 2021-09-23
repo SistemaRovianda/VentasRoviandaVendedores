@@ -1,9 +1,15 @@
 package com.example.ventasrovianda.login.view;
 
+import android.content.Context;
 import android.content.DialogInterface;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkRequest;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -25,6 +31,7 @@ import com.example.ventasrovianda.Utils.Models.ModeOfflineModel;
 import com.example.ventasrovianda.Utils.Models.SaleDTO;
 import com.example.ventasrovianda.Utils.Models.SaleOfflineMode;
 import com.example.ventasrovianda.Utils.ViewModelStore;
+import com.example.ventasrovianda.Utils.bd.entities.UserDataInitial;
 import com.example.ventasrovianda.login.presenter.LoginPresenter;
 import com.example.ventasrovianda.login.presenter.LoginPresenterContract;
 import com.google.android.material.button.MaterialButton;
@@ -41,6 +48,8 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class LoginView extends Fragment implements View.OnClickListener,LoginViewPresenter{
 
@@ -50,7 +59,9 @@ public class LoginView extends Fragment implements View.OnClickListener,LoginVie
     LoginPresenterContract presenter;
     ViewModelStore viewModelStore=null;
     Gson parser;
-    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+    Boolean isConnected=false;
+
+    @RequiresApi(api = Build.VERSION_CODES.N)
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -62,21 +73,104 @@ public class LoginView extends Fragment implements View.OnClickListener,LoginVie
         this.passwordInput = view.findViewById(R.id.passwordInput);
         presenter = new LoginPresenter(getContext(),this);
         this.parser= new Gson();
+        checkInternetConnection();
+
         return view;
     }
+
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    void checkInternetConnection(){
+        ConnectivityManager connectivityManager = (ConnectivityManager) getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+
+        connectivityManager.registerDefaultNetworkCallback(new ConnectivityManager.NetworkCallback(){
+            @Override
+            public void onAvailable(@NonNull Network network) {
+                isConnected=true;
+            }
+
+            @Override
+            public void onLost(@NonNull Network network) {
+                isConnected=false;
+            }
+        });
+    }
+
 
     @Override
     public void onClick(View v) {
         switch (v.getId()){
             case R.id.Loginbutton:
-                this.login.setVisibility(View.GONE);
-                this.loadingSpinner.setVisibility(View.VISIBLE);
-                presenter.doLogin(this.emailInput.getText().toString(),this.passwordInput.getText().toString());
+
+                if(isConnected) {
+                    executor.execute(new Runnable() {
+                        @Override
+                        public void run() {
+                            UserDataInitial userDataInitial = viewModelStore.getAppDatabase().userDataInitialDao().getByEmailAndPasswordOffline("%"+emailInput.getText().toString()+"%","%"+passwordInput.getText().toString()+"%");
+                            if(userDataInitial!=null) {
+                                viewModelStore.getAppDatabase().userDataInitialDao().updateAllLogedInTrue(userDataInitial.uid);
+                            }
+                            handler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if(userDataInitial!=null){
+                                        viewModelStore.getStore().setSellerId(userDataInitial.uid);
+                                        goToHome(userDataInitial.name,userDataInitial.uid);
+                                    }else{
+                                        login.setVisibility(View.GONE);
+                                        loadingSpinner.setVisibility(View.VISIBLE);
+                                        presenter.doLogin(emailInput.getText().toString(), passwordInput.getText().toString());
+                                    }
+                                }
+                            });
+                        }
+                    });
+
+                }else{
+                    checkCredentialsOffline(this.emailInput.getText().toString().trim(), this.passwordInput.getText().toString());
+                }
                 break;
         }
     }
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    Handler handler = new Handler(Looper.getMainLooper());
+    void checkCredentialsOffline(String email,String password){
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                UserDataInitial userDataInitial = viewModelStore.getAppDatabase().userDataInitialDao().getByEmailAndPasswordOffline("%"+email+"%","%"+password+"%");
+                viewModelStore.getAppDatabase().userDataInitialDao().updateAllLogedInTrue(userDataInitial.uid);
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if(userDataInitial!=null){
+                            viewModelStore.getStore().setSellerId(userDataInitial.uid);
+                            goToHome(userDataInitial.name,userDataInitial.uid);
+                        }
+                    }
+                });
+            }
+        });
+    }
 
-    @RequiresApi(api = Build.VERSION_CODES.N)
+    void checkIfAlreadyLogedIn(){
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                UserDataInitial userDataInitial = viewModelStore.getAppDatabase().userDataInitialDao().getAnyLogedIn();
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if(userDataInitial!=null) {
+
+                            goToHome(userDataInitial.name,userDataInitial.uid);
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    /*@RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     public void checkSincronizedDataExist() {
         Calendar calendar = Calendar.getInstance();
@@ -131,9 +225,9 @@ public class LoginView extends Fragment implements View.OnClickListener,LoginVie
             }
         }
 
-    }
+    }*/
 
-    @RequiresApi(api = Build.VERSION_CODES.N)
+    /*@RequiresApi(api = Build.VERSION_CODES.N)
     public void setModeOffline(ModeOfflineModel modeOffline) {
 
         viewModelStore.saveStore(modeOffline);
@@ -158,11 +252,9 @@ public class LoginView extends Fragment implements View.OnClickListener,LoginVie
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }*/
 
-
-    }
-
-    @Override
+    /*@Override
     public String readFileFromPath(File file) {
         StringBuilder text = new StringBuilder();
 
@@ -180,13 +272,13 @@ public class LoginView extends Fragment implements View.OnClickListener,LoginVie
             //You'll need to add proper error handling here
         }
         return text.toString();
-    }
+    }*/
 
     @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        viewModelStore = new ViewModelProvider(requireActivity()).get(ViewModelStore.class);
-        checkSincronizedDataExist();
+        this.viewModelStore = new ViewModelProvider(requireActivity()).get(ViewModelStore.class);
+        checkIfAlreadyLogedIn();
     }
 
     @Override
@@ -204,8 +296,9 @@ public class LoginView extends Fragment implements View.OnClickListener,LoginVie
     }
 
     @Override
-    public void goToHome(String nameUser){
+    public void goToHome(String nameUser,String uid){
         this.viewModelStore.getStore().setUsername(nameUser);
+        this.viewModelStore.getStore().setSellerId(uid);
         NavController navController = NavHostFragment.findNavController(this);
         navController.navigate(LoginViewDirections.actionLoginViewToHomeView(nameUser).setUserName(nameUser));
     }

@@ -27,6 +27,7 @@ import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AlertDialog;
 import androidx.core.widget.ImageViewCompat;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.NavController;
 import androidx.navigation.fragment.NavHostFragment;
 
@@ -40,6 +41,7 @@ import com.example.ventasrovianda.Utils.Models.ProductRoviandaToSale;
 import com.example.ventasrovianda.Utils.Models.SaleDTO;
 import com.example.ventasrovianda.Utils.NumberDecimalFilter;
 import com.example.ventasrovianda.Utils.PrinterUtil;
+import com.example.ventasrovianda.Utils.ViewModelStore;
 import com.example.ventasrovianda.home.adapters.AdapterListProductSale;
 import com.example.ventasrovianda.pedidos.Adapters.NewAdapterListProductSaleOrders;
 import com.example.ventasrovianda.pedidos.presenter.PedidoFormPresenter;
@@ -75,7 +77,7 @@ public class PedidoForm extends Fragment implements  PedidoFormContract,View.OnC
 
 
     String userName;
-
+    ViewModelStore viewModelStore=null;
     BluetoothDeviceSerializable bluetoothDeviceSerializable=null;
     @Nullable
     @Override
@@ -119,6 +121,12 @@ public class PedidoForm extends Fragment implements  PedidoFormContract,View.OnC
     }
 
 
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        viewModelStore = new ViewModelProvider(requireActivity()).get(ViewModelStore.class);
+
+    }
 
     @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
@@ -159,7 +167,7 @@ public class PedidoForm extends Fragment implements  PedidoFormContract,View.OnC
                         OrderDTO order = generateObjetRequest();
                         registeringOrderSpinner.setVisibility(View.VISIBLE);
                         registrarOrder.setVisibility(View.GONE);
-                        presenter.registerOrder(order);
+                        presenter.registerOrder(order,viewModelStore.getStore().getSellerId());
                     }
                 }).setNegativeButton("Cancelar",null).create();
         dialog.show();

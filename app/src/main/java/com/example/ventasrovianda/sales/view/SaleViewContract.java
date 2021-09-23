@@ -28,6 +28,10 @@ public interface SaleViewContract {
 
     void cancelSale(String folio);
 
+    void goToDevolutionSaleToView(String folio);
+
     void printTicketSale(String folio);
     boolean isNetworkAvailable();
+
+    void showOptionsSale(SaleResponseDTO sale);
 }

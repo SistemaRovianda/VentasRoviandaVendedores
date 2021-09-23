@@ -2,7 +2,7 @@ package com.example.ventasrovianda.pedidos.presenter;
 
 public interface PedidoPresenterContract {
 
-    void getOrders();
+    void getOrders(String uid);
 
     void getOrderDetailsToEditToPrint(Long orderId);
 

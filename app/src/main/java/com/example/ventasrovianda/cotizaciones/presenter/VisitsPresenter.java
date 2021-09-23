@@ -15,10 +15,17 @@ import com.android.volley.toolbox.HurlStack;
 import com.example.ventasrovianda.Utils.GsonRequest;
 import com.example.ventasrovianda.Utils.Models.ClientDTO;
 import com.example.ventasrovianda.Utils.Models.ClientVisitDTO;
+import com.example.ventasrovianda.Utils.Models.DebPayedRequest;
+import com.example.ventasrovianda.Utils.Models.DevolutionRequestServer;
 import com.example.ventasrovianda.Utils.Models.ModeOfflineModel;
+import com.example.ventasrovianda.Utils.Models.ModeOfflineNewVersion;
+import com.example.ventasrovianda.Utils.Models.ModeOfflineSM;
 import com.example.ventasrovianda.Utils.Models.ModeOfflineSincronize;
 import com.example.ventasrovianda.Utils.Models.ProductPresentation;
 import com.example.ventasrovianda.Utils.Models.ProductRovianda;
+import com.example.ventasrovianda.Utils.Models.SincronizationNewVersionRequest;
+import com.example.ventasrovianda.Utils.Models.SincronizationResponse;
+import com.example.ventasrovianda.Utils.Models.SincronizeSingleSaleSuccess;
 import com.example.ventasrovianda.cotizaciones.view.VisitsView;
 import com.example.ventasrovianda.cotizaciones.view.VisitsViewContract;
 import com.google.firebase.auth.FirebaseAuth;
@@ -57,14 +64,14 @@ public class VisitsPresenter implements VisitsPresenterContract {
 
 
     @Override
-    public void getClientsVisits() {
+    public void getClientsVisits(String uid) {
         Map<String,String> headers = new HashMap<>();
-        String sellerUid = this.firebaseAuth.getCurrentUser().getUid();
+
         Calendar calendar = Calendar.getInstance();
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
         String dateParsed = dateFormat.format(calendar.getTime());
             GsonRequest<ClientVisitDTO[]> productsRoviandaGet = new GsonRequest<ClientVisitDTO[]>
-                    (url+"/rovianda/seller/customer/schedule?sellerUid="+sellerUid+"&date="+dateParsed,ClientVisitDTO[].class,headers,
+                    (url+"/rovianda/seller/customer/schedule?sellerUid="+uid+"&date="+dateParsed,ClientVisitDTO[].class,headers,
                      new Response.Listener<ClientVisitDTO[]>(){
                          @Override
                          public void onResponse(ClientVisitDTO[] response) {
@@ -100,7 +107,7 @@ public class VisitsPresenter implements VisitsPresenterContract {
         });
     }
 
-    @Override
+    /*@Override
     public void getStockOnline() {
         Map<String,String> headers = new HashMap<>();
         String sellerId = firebaseAuth.getUid();
@@ -114,7 +121,7 @@ public class VisitsPresenter implements VisitsPresenterContract {
                             public void onResponse(ModeOfflineModel response) {
                                 if(response!=null) {
                                     System.out.println("Se obtuvo respuesta");
-                                    view.setModeOffline(response);
+                                    //view.setModeOffline(response);
                                 }else{
                                     System.out.println("Error al obtener respuesta");
                                 }
@@ -143,7 +150,7 @@ public class VisitsPresenter implements VisitsPresenterContract {
 
             }
         });
-    }
+    }*/
 
     @Override
     public void getPresentations(ProductRovianda productRovianda) {
@@ -187,12 +194,12 @@ public class VisitsPresenter implements VisitsPresenterContract {
     }
 
     @Override
-    public void UploadChanges(ModeOfflineSincronize modeOfflineSincronize) {
+    public void UploadChanges(ModeOfflineSincronize modeOfflineSincronize,String uid) {
         Map<String,String> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
-        String sellerId = firebaseAuth.getUid();
+
         GsonRequest<String> presentationsgGet = new GsonRequest<String>
-                (url+"/rovianda/sincronize/"+sellerId, String.class,headers,
+                (url+"/rovianda/sincronize/"+uid, String.class,headers,
                         new Response.Listener<String>(){
                             @Override
                             public void onResponse(String response) {
@@ -307,7 +314,125 @@ public class VisitsPresenter implements VisitsPresenterContract {
 
     @Override
     public void logout() {
-        this.firebaseAuth.signOut();
+        if(this.firebaseAuth!=null) {
+            this.firebaseAuth.signOut();
+        }
         view.goToLogin();
+    }
+
+    @Override
+    public void updateStatusSincronizedClient(List<Integer> clients) {
+        Map<String,String> headers = new HashMap<>();
+        headers.put("Content-Type", "application/json");
+        GsonRequest<String> sincronizeClients = new GsonRequest<String>
+                (url+"/rovianda/status-sincronized/client", String.class,headers,
+                        new Response.Listener<String>(){
+                            @Override
+                            public void onResponse(String response) {
+
+                            }
+
+                        },new Response.ErrorListener(){
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+
+                    }
+                }   , Request.Method.POST,parser.toJson(clients)
+                );
+        requestQueue.add(sincronizeClients).setRetryPolicy(new RetryPolicy() {
+            @Override
+            public int getCurrentTimeout() {
+                return 15000;
+            }
+
+            @Override
+            public int getCurrentRetryCount() {
+                return 0;
+            }
+
+            @Override
+            public void retry(VolleyError error) throws VolleyError {
+
+            }
+        });
+    }
+
+    @Override
+    public void sincronizeSales(List<ModeOfflineSM> ModeOfflineSMS, List<DebPayedRequest> debtsPayedRequest, List<DevolutionRequestServer> devolutionRequestServers,String sellerId) {
+        Map<String,String> headers = new HashMap<>();
+        headers.put("Content-Type", "application/json");
+
+        SincronizationNewVersionRequest sincronizationNewVersionRequest = new SincronizationNewVersionRequest();
+        sincronizationNewVersionRequest.setSales(ModeOfflineSMS);
+        sincronizationNewVersionRequest.setDebts(debtsPayedRequest);
+        sincronizationNewVersionRequest.setDevolutions(devolutionRequestServers);
+        GsonRequest<SincronizationResponse> presentationsgGet = new GsonRequest<SincronizationResponse>
+                (url+"/rovianda/sincronize-single/sale?sellerId="+sellerId, SincronizationResponse.class,headers,
+                        new Response.Listener<SincronizationResponse>(){
+                            @Override
+                            public void onResponse(SincronizationResponse response) {
+                                view.hiddeNotificationSincronizastion();
+                                view.completeSincronzation(response);
+                            }
+
+                        },new Response.ErrorListener(){
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        view.showNotificationSincronization("Error al sincronizasr venta ");
+                    }
+                }   , Request.Method.POST,parser.toJson(sincronizationNewVersionRequest)
+                );
+        requestQueue.add(presentationsgGet).setRetryPolicy(new RetryPolicy() {
+            @Override
+            public int getCurrentTimeout() {
+                return 50000;
+            }
+
+            @Override
+            public int getCurrentRetryCount() {
+                return 0;
+            }
+
+            @Override
+            public void retry(VolleyError error) throws VolleyError {
+
+            }
+        });
+    }
+
+    @Override
+    public void getDataInitial(String sellerUid,String date) {
+        System.out.println("Getting data: "+sellerUid);
+        Map<String,String> headers = new HashMap<>();
+        GsonRequest<ModeOfflineNewVersion> getOfflineModeData = new GsonRequest<ModeOfflineNewVersion>(
+                url + "/rovianda/sincronization/" + sellerUid+"?date="+date, ModeOfflineNewVersion.class, headers, new Response.Listener<ModeOfflineNewVersion>() {
+            @Override
+            public void onResponse(ModeOfflineNewVersion response) {
+                System.out.println("Data Obtained");
+                view.setModeOffline(response);
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                System.out.println("Error: "+error.getMessage());
+            }
+        },Request.Method.GET,null
+        );
+        requestQueue.add(getOfflineModeData).setRetryPolicy(new RetryPolicy() {
+            @Override
+            public int getCurrentTimeout() {
+                return 30000;
+            }
+
+            @Override
+            public int getCurrentRetryCount() {
+                return 0;
+            }
+
+            @Override
+            public void retry(VolleyError error) throws VolleyError {
+
+            }
+        });
     }
 }

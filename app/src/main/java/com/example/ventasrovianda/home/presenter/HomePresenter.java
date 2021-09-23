@@ -15,13 +15,19 @@ import com.android.volley.toolbox.StringRequest;
 import com.example.ventasrovianda.Utils.GsonRequest;
 import com.example.ventasrovianda.Utils.Models.ClientDTO;
 import com.example.ventasrovianda.Utils.Models.CounterTime;
+import com.example.ventasrovianda.Utils.Models.DebPayedRequest;
+import com.example.ventasrovianda.Utils.Models.DevolutionRequestServer;
 import com.example.ventasrovianda.Utils.Models.EatTimeRequest;
 import com.example.ventasrovianda.Utils.Models.ErrorResponse;
 import com.example.ventasrovianda.Utils.Models.ModeOfflineModel;
+import com.example.ventasrovianda.Utils.Models.ModeOfflineSM;
 import com.example.ventasrovianda.Utils.Models.ModeOfflineSincronize;
 import com.example.ventasrovianda.Utils.Models.ProductRoviandaToSale;
 import com.example.ventasrovianda.Utils.Models.SaleDTO;
 import com.example.ventasrovianda.Utils.Models.SaleSuccess;
+import com.example.ventasrovianda.Utils.Models.SincronizationNewVersionRequest;
+import com.example.ventasrovianda.Utils.Models.SincronizationResponse;
+import com.example.ventasrovianda.Utils.Models.SincronizeSingleSaleSuccess;
 import com.example.ventasrovianda.home.view.HomeView;
 import com.example.ventasrovianda.home.view.HomeViewContract;
 import com.google.firebase.auth.FirebaseAuth;
@@ -31,6 +37,7 @@ import java.io.UnsupportedEncodingException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static java.lang.Thread.sleep;
@@ -62,11 +69,13 @@ public class HomePresenter implements HomePresenterContract{
 
     @Override
     public void doLogout() {
-        this.firebaseAuth.signOut();
+        if(this.firebaseAuth!=null) {
+            this.firebaseAuth.signOut();
+        }
         view.goToLogin();
     }
 
-    @Override
+    /*@Override
     public void UploadChanges(ModeOfflineSincronize modeOfflineSincronize) {
         Map<String,String> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
@@ -76,15 +85,57 @@ public class HomePresenter implements HomePresenterContract{
                         new Response.Listener<String>(){
                             @Override
                             public void onResponse(String response) {
-                                view.sincronizeComplete();
+
                             }
 
                         },new Response.ErrorListener(){
                     @Override
                     public void onErrorResponse(VolleyError error) {
-                        view.sincronizeError();
+
                     }
                 }   , Request.Method.POST,parser.toJson(modeOfflineSincronize)
+                );
+        requestQueue.add(presentationsgGet).setRetryPolicy(new RetryPolicy() {
+            @Override
+            public int getCurrentTimeout() {
+                return 50000;
+            }
+
+            @Override
+            public int getCurrentRetryCount() {
+                return 0;
+            }
+
+            @Override
+            public void retry(VolleyError error) throws VolleyError {
+
+            }
+        });
+    }*/
+
+    @Override
+    public void sincronizeSales(List<ModeOfflineSM> ModeOfflineSMS, List<DebPayedRequest> debtsPayedRequest, List<DevolutionRequestServer> devolutionRequestServers,String sellerId) {
+        Map<String,String> headers = new HashMap<>();
+        headers.put("Content-Type", "application/json");
+        SincronizationNewVersionRequest sincronizationNewVersionRequest = new SincronizationNewVersionRequest();
+        sincronizationNewVersionRequest.setSales(ModeOfflineSMS);
+        sincronizationNewVersionRequest.setDebts(debtsPayedRequest);
+        sincronizationNewVersionRequest.setDevolutions(devolutionRequestServers);
+        GsonRequest<SincronizationResponse> presentationsgGet = new GsonRequest<SincronizationResponse>
+                (url+"/rovianda/sincronize-single/sale?sellerId="+sellerId, SincronizationResponse.class,headers,
+                        new Response.Listener<SincronizationResponse>(){
+                            @Override
+                            public void onResponse(SincronizationResponse response) {
+                                view.hiddeNotificationSincronizastion();
+                                view.completeSincronzation(response);
+                            }
+
+                        },new Response.ErrorListener(){
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                            view.showNotificationSincronization("Error al sincronizasr venta ");
+                    }
+                }   , Request.Method.POST,parser.toJson(sincronizationNewVersionRequest)
                 );
         requestQueue.add(presentationsgGet).setRetryPolicy(new RetryPolicy() {
             @Override
@@ -116,7 +167,7 @@ public class HomePresenter implements HomePresenterContract{
                             public void onResponse(ModeOfflineModel response) {
                                 if(response!=null) {
                                     System.out.println("Se obtuvo respuesta");
-                                    view.setModeOffline(response);
+                                    //view.setModeOffline(response);
                                 }else{
                                     System.out.println("Error al obtener respuesta");
                                 }
@@ -126,7 +177,7 @@ public class HomePresenter implements HomePresenterContract{
                     @Override
                     public void onErrorResponse(VolleyError error) {
                         System.out.println("Se obtuvo respuesta: "+error.getMessage());
-                        view.dismissLoadModal();
+
                     }
                 }   , Request.Method.GET,null
                 );
@@ -148,7 +199,7 @@ public class HomePresenter implements HomePresenterContract{
         });
     }
 
-
+/*
     @Override
     public void findUser(Integer userId) {
         Map<String,String> headers = new HashMap<>();
@@ -188,11 +239,11 @@ public class HomePresenter implements HomePresenterContract{
             }
         });
 
-    }
+    }*/
 
 
 
-    @Override
+    /*@Override
     public void findProduct(String code) {
         Map<String,String> headers = new HashMap<>();
         String userId = firebaseAuth.getCurrentUser().getUid();
@@ -201,7 +252,7 @@ public class HomePresenter implements HomePresenterContract{
                         new Response.Listener<ProductRoviandaToSale>(){
                             @Override
                             public void onResponse(ProductRoviandaToSale response) {
-                               view.addProductToSaleCar(response);
+
                             }
                         },new Response.ErrorListener(){
                     @Override
@@ -226,7 +277,7 @@ public class HomePresenter implements HomePresenterContract{
 
             }
         });
-    }
+    }*/
 
     @Override
     public void doSale(SaleDTO saleDTO) {
@@ -352,7 +403,8 @@ public class HomePresenter implements HomePresenterContract{
         });;
     }
 
-    int currentHours=0;
+
+    /*int currentHours=0;
     int currentMinutes=0;
     int currentSeconds=0;
 
@@ -537,5 +589,5 @@ public class HomePresenter implements HomePresenterContract{
             }
         });
         requestQueue.add(saleRequets);
-    }
+    }*/
 }

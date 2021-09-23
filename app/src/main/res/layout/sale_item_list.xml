@@ -17,7 +17,7 @@
 
         <LinearLayout
             android:layout_width="wrap_content"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:layout_weight="1"
             android:orientation="vertical">
 
@@ -56,25 +56,19 @@
 
         <LinearLayout
             android:layout_width="150dp"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:layout_weight="1"
             android:orientation="vertical">
 
             <Button
-                android:id="@+id/cancelSaleButton"
+                android:id="@+id/optionsButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Cancelar venta"
-                app:backgroundTint="#FF9800" />
+                android:text="Opciones"
+                android:textColor="#FFFFFF"
+                app:backgroundTint="#0022FF" />
 
-            <Button
-                android:id="@+id/reprintTickerButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Reimprimir Ticket"
-                app:backgroundTint="#FFC107" />
         </LinearLayout>
 
     </LinearLayout>

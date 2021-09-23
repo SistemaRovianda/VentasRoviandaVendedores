@@ -100,10 +100,12 @@
                 android:layout_height="40dp"
                 android:layout_marginTop="20dp"
                 android:layout_weight="1"
+                android:enabled="false"
                 android:fontFamily="@font/vidaloka"
                 android:text="Hora de comida"
                 android:textColor="#28BF2E"
-                android:textSize="12sp" />
+                android:textSize="12sp"
+                android:visibility="invisible" />
 
             <TextView
                 android:id="@+id/end_day_button"
@@ -115,6 +117,16 @@
                 android:text="Terminar día"
                 android:textColor="#28BF2E"
                 android:textSize="12sp" />
+
+            <ImageView
+                android:id="@+id/resincronizeButton"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:layout_marginTop="20dp"
+                android:layout_weight="1"
+                android:visibility="gone"
+                app:srcCompat="@drawable/ic_sync_problem_white_24dp"
+                app:tint="#CCCCCC" />
 
             <TextView
                 android:id="@+id/Logout_button"

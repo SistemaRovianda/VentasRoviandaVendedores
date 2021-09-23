@@ -50,7 +50,7 @@ public class ClientPresenter implements ClientPresenterContract {
     }
 
 
-    @Override
+/*    @Override
     public void getClients() {
         Map<String,String> headers = new HashMap<>();
         GsonRequest<ClientDTO[]> presentationsgGet = new GsonRequest<ClientDTO[]>
@@ -89,10 +89,12 @@ public class ClientPresenter implements ClientPresenterContract {
             }
         });
     }
-
+*/
     @Override
     public void logout() {
-        this.firebaseAuth.signOut();
+        if(this.firebaseAuth!=null) {
+            this.firebaseAuth.signOut();
+        }
         view.goToLogin();
     }
 }

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#040404"
+        android:orientation="vertical"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:id="@+id/textView14"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="¿Que operación deceas realizar?"
+            android:textColor="#07F410"
+            android:textSize="20sp" />
+
+        <Button
+            android:id="@+id/optionReprintButton"
+            android:layout_width="match_parent"
+            android:layout_height="80dp"
+            android:text="Reimprimir"
+            app:backgroundTint="#FFEB3B" />
+
+        <Button
+            android:id="@+id/optionCancelButton"
+            android:layout_width="match_parent"
+            android:layout_height="80dp"
+            android:text="Cancelar"
+            app:backgroundTint="#FFC107" />
+
+        <Button
+            android:id="@+id/optionDevolutionButton"
+            android:layout_width="match_parent"
+            android:layout_height="80dp"
+            android:text="Devolver"
+            app:backgroundTint="#050505" />
+    </LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

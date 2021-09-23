@@ -1,10 +1,15 @@
 package com.example.ventasrovianda.clients.view;
 
+import android.content.Context;
 import android.content.DialogInterface;
 import android.graphics.Color;
+import android.net.ConnectivityManager;
+import android.net.Network;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
@@ -32,6 +37,7 @@ import com.example.ventasrovianda.Utils.Models.ClientDTO;
 import com.example.ventasrovianda.Utils.Models.ClientOfflineMode;
 import com.example.ventasrovianda.Utils.Models.ModeOfflineModel;
 import com.example.ventasrovianda.Utils.ViewModelStore;
+import com.example.ventasrovianda.Utils.bd.entities.Client;
 import com.example.ventasrovianda.clients.presenter.ClientPresenter;
 import com.example.ventasrovianda.clients.presenter.ClientPresenterContract;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
@@ -48,6 +54,8 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 public class ClientView extends Fragment implements View.OnClickListener,ClientViewContract{
@@ -68,6 +76,11 @@ public class ClientView extends Fragment implements View.OnClickListener,ClientV
     ViewModelStore viewModelStore;
     Gson parser;
     boolean modeOffline;
+
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    Handler handler = new Handler(Looper.getMainLooper());
+
+    @RequiresApi(api = Build.VERSION_CODES.N)
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -118,6 +131,7 @@ public class ClientView extends Fragment implements View.OnClickListener,ClientV
                 }
             }
 
+            @RequiresApi(api = Build.VERSION_CODES.N)
             @Override
             public void afterTextChanged(Editable s) {
                 if(!s.toString().isEmpty()) {
@@ -154,6 +168,7 @@ public class ClientView extends Fragment implements View.OnClickListener,ClientV
                 return false;
             }
         });
+        checkInternetConnection();
         return view;
     }
 
@@ -162,35 +177,10 @@ public class ClientView extends Fragment implements View.OnClickListener,ClientV
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         viewModelStore = new ViewModelProvider(requireActivity()).get(ViewModelStore.class);
-        if(checkOffline()) {
-           modeOffline=true;
-        }else{
-            modeOffline=false;
-        }
-        if(modeOffline){
-            List<ClientDTO> array = viewModelStore.getStore().getClients().stream().map(client -> {
-                ClientDTO clientDTO = new ClientDTO();
-                clientDTO.setName(client.getClientName());
-                clientDTO.setKeyClient(Integer.parseInt(client.getKeyClient()));
-                return clientDTO;
-            }).collect(Collectors.toList());
-            //viewModelStore.getStore().getClients().toArray(array);
-            setClients(array);
-        }else{
-            this.presenter.getClients();
-        }
 
+        setClientVisits("",false);
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
-    Boolean checkOffline(){
-        Calendar calendar = Calendar.getInstance();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-        String dateParsed = dateFormat.format(calendar.getTime());
-        File root = new File(getContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "offline");
-        File gpxfile = new File(root, "offline-"+dateParsed+".rovi");
-        return gpxfile.exists();
-    }
 
     void goToHome(){
         this.navController.navigate(ClientViewDirections.actionClientViewToHomeView(this.userName).setUserName(this.userName).setClientInVisit(this.clientDTO).setPrinterDevice(this.bluetoothDeviceSerializable));
@@ -219,7 +209,21 @@ public class ClientView extends Fragment implements View.OnClickListener,ClientV
                 .setMessage("¿Está seguro que desea cerrar sesion?").setPositiveButton("Aceptar", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        presenter.logout();
+
+
+                            executor.execute(new Runnable() {
+                                @Override
+                                public void run() {
+                                    viewModelStore.getAppDatabase().userDataInitialDao().updateAllLogedInFalse();
+                                    handler.post(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            presenter.logout();
+                                        }
+                                    });
+                                }
+                            });
+
                     }
                 }).setNegativeButton("Cancelar",new DialogInterface.OnClickListener() {
                     @Override
@@ -230,6 +234,7 @@ public class ClientView extends Fragment implements View.OnClickListener,ClientV
         dialog.show();
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     public void onClick(View v) {
         switch (v.getId()) {
@@ -237,10 +242,10 @@ public class ClientView extends Fragment implements View.OnClickListener,ClientV
                 logout();
                 break;
             case R.id.nuevoCliente:
-                if (!modeOffline) {
+                if (isConnected) {
                     goToRegister();
                 }else{
-                    Toast.makeText(getContext(),"Debes estar en linea",Toast.LENGTH_SHORT).show();
+                    genericMessage("Sin conexión","Debes tener internet");
                 }
                 break;
             case R.id.buscarClienteButton:
@@ -248,78 +253,113 @@ public class ClientView extends Fragment implements View.OnClickListener,ClientV
                 break;
         }
     }
+
+    public void genericMessage(String title,String msg){
+        AlertDialog dialog = new MaterialAlertDialogBuilder(getContext()).setTitle(title)
+                .setMessage(msg).setPositiveButton("Aceptar", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+
+                    }
+                }).setOnDismissListener(new DialogInterface.OnDismissListener() {
+                    @Override
+                    public void onDismiss(DialogInterface dialog) {
+
+                    }
+                }).create();
+        dialog.show();
+
+    }
+
+    Boolean isConnected=false;
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    void checkInternetConnection(){
+        ConnectivityManager connectivityManager = (ConnectivityManager) getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+
+        connectivityManager.registerDefaultNetworkCallback(new ConnectivityManager.NetworkCallback(){
+            @Override
+            public void onAvailable(@NonNull Network network) {
+                isConnected=true;
+            }
+
+            @Override
+            public void onLost(@NonNull Network network) {
+                isConnected=false;
+            }
+        });
+    }
+
+
     boolean filtered=false;
     String currentHint="";
+    @RequiresApi(api = Build.VERSION_CODES.N)
     void search(){
-        if(clientsToFilter!=null && clientsToFilter.length>0){
-            List<ClientDTO> clients = new ArrayList<>();
-            boolean filtrable=false;
+
+
             if(filtered==false) {
                 filtered = true;
                 this.buscarCliente.setText("Cancelar");
-                    filtrable=true;
+
                 this.currentHint = this.inputSearch.getEditText().getText().toString();
             }else{
                 if(!currentHint.equals(this.inputSearch.getEditText().getText().toString())) {
                     filtered = true;
-                    filtrable=true;
+
                     this.buscarCliente.setText("Cancelar");
                     this.currentHint = this.inputSearch.getEditText().getText().toString();
                 }else {
                     filtered = false;
-                    filtrable=false;
+
                     this.buscarCliente.setText("Buscar");
                 }
             }
-            if(filtrable==true && filtered==true){
 
-                for(int i=0;i<clientsToFilter.length;i++){
-                    if(clientsToFilter[i].getName().toLowerCase().contains(this.currentHint.toLowerCase()) || String.valueOf(clientsToFilter[i].getKeyClient()).toLowerCase().contains(this.currentHint.toLowerCase())){
-                        clients.add(clientsToFilter[i]);
-                    }
-                }
-            }else{
-                for(int i=0;i<clientsToFilter.length;i++){
-                    clients.add(clientsToFilter[i]);
-                }
-            }
-            setClients(clients);
-        }
+            setClientVisits(this.currentHint,filtered);
+
     }
 
 
-    @Override
-    public void setClients(List<ClientDTO> clients) {
 
-        String[] clientFiltered = new String[clients.size()];
-        boolean firstTime =false;
-        if(clientsToFilter==null){
-            firstTime=true;
-            clientsToFilter = new ClientDTO[clients.size()];
-        }
-        for(int i=0;i<clients.size();i++){
-
-            ClientDTO clientDTO= clients.get(i);
-            if(firstTime==true){
-                clientsToFilter[i]=clientDTO;
-            }
-            clientFiltered[i]=clientDTO.getKeyClient()+" "+clientDTO.getName();
-        }
-        ArrayAdapter<String> customAdapter = new ArrayAdapter<String>(getContext(), android.R.layout.simple_list_item_1,clientFiltered){
-            @NonNull
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    public void setClientVisits(String hint,Boolean filter) {
+        executor.execute(new Runnable() {
             @Override
-            public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
-                View view =super.getView(position, convertView, parent);
+            public void run() {
+                List<Client> clientsToVisit=new ArrayList<>();
 
-                TextView textView=(TextView) view.findViewById(android.R.id.text1);
+                List<Client> clientsFromSql= viewModelStore.getAppDatabase().clientDao().getClientsBySellerUid(viewModelStore.getStore().getSellerId());
+                for(Client client : clientsFromSql){
+                    if(filter){
+                        if(client.name.toLowerCase().contains(hint.toLowerCase()) || String.valueOf(client.clientKey).contains(hint)){
+                            clientsToVisit.add(client);
+                        }
+                    }else{
+                        clientsToVisit.add(client);
+                    }
+                }
 
-                /*YOUR CHOICE OF COLOR*/
-                textView.setTextColor(Color.WHITE);
-
-                return view;
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if(clientsToVisit.size()>0) {
+                            List<String> clients = clientsToVisit.stream().map(client -> client.clientKey + " " + client.name).collect(Collectors.toList());
+                            String[] arr = new String[clientsToVisit.size()];
+                            clients.toArray(arr);
+                            ArrayAdapter<String> customAdapter = new ArrayAdapter<String>(getContext(), android.R.layout.simple_list_item_1, arr) {
+                                @NonNull
+                                @Override
+                                public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+                                    View view = super.getView(position, convertView, parent);
+                                    TextView tv = (TextView) view.findViewById(android.R.id.text1);
+                                    tv.setTextColor(Color.WHITE);
+                                    return view;
+                                }
+                            };
+                            listaClients.setAdapter(customAdapter);
+                        }
+                    }
+                });
             }
-        };
-        //ArrayAdapter<String> customAdapter = new ArrayAdapter<String>(getContext(), android.R.layout.simple_list_item_1, products);
-        listaClients.setAdapter(customAdapter);
+        });
     }
 }

@@ -92,7 +92,6 @@ public class SaleDebtListAdapter extends  BaseAdapter {
             }
             status.setText("Estatus: " + statusStr);
 
-
             return view;
         }
 

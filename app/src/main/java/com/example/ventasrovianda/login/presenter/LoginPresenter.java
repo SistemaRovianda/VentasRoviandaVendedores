@@ -16,6 +16,7 @@ import com.android.volley.toolbox.DiskBasedCache;
 import com.android.volley.toolbox.HurlStack;
 import com.example.ventasrovianda.Utils.GsonRequest;
 import com.example.ventasrovianda.Utils.Models.ProductPresentation;
+import com.example.ventasrovianda.Utils.Models.Token;
 import com.example.ventasrovianda.Utils.Models.UserDetails;
 import com.example.ventasrovianda.login.view.LoginView;
 import com.example.ventasrovianda.login.view.LoginViewPresenter;
@@ -24,6 +25,7 @@ import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.gson.Gson;
 
 import java.util.ArrayList;
@@ -50,6 +52,7 @@ public class LoginPresenter implements LoginPresenterContract{
         network = new BasicNetwork(new HurlStack());
         requestQueue = new RequestQueue(cache,network);
         requestQueue.start();
+        parser = new Gson();
     }
 
     @Override
@@ -64,17 +67,23 @@ public class LoginPresenter implements LoginPresenterContract{
         }
         System.out.println(email.toLowerCase().trim());
         System.out.println(password.toLowerCase().trim());
-        this.firebaseAuth.signInWithEmailAndPassword(email.toLowerCase().trim(),password.trim()).addOnCompleteListener(new OnCompleteListener<AuthResult>() {
-            @Override
-            public void onComplete(@NonNull Task<AuthResult> task) {
-                if(task.isComplete() && task.isSuccessful()){
-                    getDetailsOfUser(task.getResult().getUser().getUid());
+        String emailStr =email.toLowerCase().trim();
+        String passwordStr=password.toString();
+        if(emailStr!=null && !emailStr.isEmpty() && passwordStr!=null && !password.isEmpty()) {
+            this.firebaseAuth.signInWithEmailAndPassword(email.toLowerCase().trim(), password.trim()).addOnCompleteListener(new OnCompleteListener<AuthResult>() {
+                @Override
+                public void onComplete(@NonNull Task<AuthResult> task) {
+                    if (task.isComplete() && task.isSuccessful()) {
+                        getDetailsOfUser(task.getResult().getUser().getUid());
 
-                }else{
-                    view.showErrors("Error con las credenciales");
+                    } else {
+                        view.showErrors("Error con las credenciales");
+                    }
                 }
-            }
-        });
+            });
+        }else{
+            view.showErrors("Introduce correctamente las credenciales");
+        }
     }
 
     void getDetailsOfUser(String uid){
@@ -85,7 +94,8 @@ public class LoginPresenter implements LoginPresenterContract{
                             @Override
                             public void onResponse(UserDetails response) {
                                 if(response.getRol().equals("SALESUSER")){
-                                    view.goToHome(response.getName());
+                                    //setToken(uid);
+                                    view.goToHome(response.getName(),uid);
                                 }else{
                                     view.showErrors("Usuario no autorizado");
                                 }
@@ -128,4 +138,67 @@ public class LoginPresenter implements LoginPresenterContract{
     public String checkLoginStr() {
         return (this.firebaseAuth.getCurrentUser()!=null)?this.firebaseAuth.getUid():null;
     }
+
+
+    /*@Override
+    public void setToken(String uid) {
+        FirebaseMessaging.getInstance().getToken().addOnCompleteListener(new OnCompleteListener<String>() {
+            @Override
+            public void onComplete(@NonNull Task<String> task) {
+                if(task.isSuccessful()){
+                    System.out.println("Se obtuvo el token: "+task.getResult());
+                    Token token = new Token();
+                    token.setToken(task.getResult());
+                    FirebaseMessaging.getInstance().subscribeToTopic("admin_sales").addOnCompleteListener(new OnCompleteListener<Void>() {
+                        @Override
+                        public void onComplete(@NonNull Task<Void> task) {
+                            if(task.isSuccessful()){
+                                System.out.println("Token suscrito al topico admin_sales");
+                            }
+                        }
+                    });
+                    sendToken(uid,token);
+                }else {
+                    System.out.println("No se pudo asignar un token, verifique conexión de red");
+                }
+            }
+        });
+    }
+
+    @Override
+    public void sendToken(String uid, Token token) {
+        Map<String,String> headers = new HashMap<>();
+        headers.put("Content-Type","application/json");
+        GsonRequest<String> sendTokenReq = new GsonRequest<String>
+                (url+"/rovianda/set-token/"+uid, String.class,headers,
+                        new Response.Listener<String>(){
+                            @Override
+                            public void onResponse(String response) {
+
+                            }
+
+                        },new Response.ErrorListener(){
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+
+                    }
+                }   , Request.Method.PUT,parser.toJson(token)
+                );
+        requestQueue.add(sendTokenReq).setRetryPolicy(new RetryPolicy() {
+            @Override
+            public int getCurrentTimeout() {
+                return 15000;
+            }
+
+            @Override
+            public int getCurrentRetryCount() {
+                return 0;
+            }
+
+            @Override
+            public void retry(VolleyError error) throws VolleyError {
+
+            }
+        });
+    }*/
 }

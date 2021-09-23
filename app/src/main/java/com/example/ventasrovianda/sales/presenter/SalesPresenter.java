@@ -260,7 +260,9 @@ public class SalesPresenter implements SalePresenterContract {
 
     @Override
     public void logout() {
-        this.firebaseAuth.signOut();
+        if(this.firebaseAuth!=null){
+            this.firebaseAuth.signOut();
+        }
         view.goToLogin();
     }
 
@@ -318,43 +320,5 @@ public class SalesPresenter implements SalePresenterContract {
         view.printTicketSale(sale.getFolio());
     }
 
-    @Override
-    public void checkAccumulated() {
-        Map<String,String> headers = new HashMap<>();
-        String userId = firebaseAuth.getCurrentUser().getUid();
-        Calendar calendar = Calendar.getInstance();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-        String dateParsed = dateFormat.format(calendar.getTime());
-        GsonRequest<TotalSoldedDTO> getTotalAcumulated = new GsonRequest<TotalSoldedDTO>
-                (url+"/rovianda/get-status/sales/"+userId+"?date="+dateParsed, TotalSoldedDTO.class,headers,
-                        new Response.Listener<TotalSoldedDTO>(){
-                            @Override
-                            public void onResponse(TotalSoldedDTO response) {
-                                view.setAcumulated(response);
-                            }
 
-                        },new Response.ErrorListener(){
-                    @Override
-                    public void onErrorResponse(VolleyError error) {
-                        System.out.println("No se pudo obtener las ordenes");
-                    }
-                }   , Request.Method.GET,null
-                );
-        requestQueue.add(getTotalAcumulated).setRetryPolicy(new RetryPolicy() {
-            @Override
-            public int getCurrentTimeout() {
-                return 15000;
-            }
-
-            @Override
-            public int getCurrentRetryCount() {
-                return 0;
-            }
-
-            @Override
-            public void retry(VolleyError error) throws VolleyError {
-
-            }
-        });
-    }
 }

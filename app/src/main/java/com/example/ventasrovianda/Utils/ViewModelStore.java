@@ -6,8 +6,18 @@ import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
 import com.example.ventasrovianda.Utils.Models.ModeOfflineModel;
+import com.example.ventasrovianda.Utils.bd.AppDatabase;
 
 public class ViewModelStore extends ViewModel {
+    private AppDatabase appDatabase;
+
+    public AppDatabase getAppDatabase() {
+        return appDatabase;
+    }
+
+    public void setAppDatabase(AppDatabase appDatabase) {
+        this.appDatabase = appDatabase;
+    }
 
     private ModeOfflineModel modeOfflineModel;
     public ModeOfflineModel getStore(){

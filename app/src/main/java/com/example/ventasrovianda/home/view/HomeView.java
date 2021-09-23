@@ -1,37 +1,26 @@
 package com.example.ventasrovianda.home.view;
 
+import android.app.DatePickerDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothSocket;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.CountDownTimer;
-import android.os.Environment;
 import android.os.Handler;
-import android.text.Editable;
+import android.os.Looper;
 import android.text.InputFilter;
-import android.text.InputType;
-import android.text.TextWatcher;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.AutoCompleteTextView;
 import android.widget.Button;
+import android.widget.DatePicker;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.ListView;
-import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -40,6 +29,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AlertDialog;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 import androidx.core.widget.ImageViewCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
@@ -47,27 +38,37 @@ import androidx.navigation.NavController;
 import androidx.navigation.fragment.NavHostFragment;
 
 import com.example.ventasrovianda.R;
+import com.example.ventasrovianda.Utils.DatePickerFragment;
 import com.example.ventasrovianda.Utils.Models.BluetoothDeviceSerializable;
 import com.example.ventasrovianda.Utils.Models.ClientDTO;
 import com.example.ventasrovianda.Utils.Models.ClientOfflineMode;
-import com.example.ventasrovianda.Utils.Models.CounterTime;
+import com.example.ventasrovianda.Utils.Models.DebPayedRequest;
+import com.example.ventasrovianda.Utils.Models.DevolutionRequestServer;
+import com.example.ventasrovianda.Utils.Models.DevolutionSubSaleRequestServer;
 import com.example.ventasrovianda.Utils.Models.InventoryOfflineMode;
 import com.example.ventasrovianda.Utils.Models.ModeOfflineDebts;
-import com.example.ventasrovianda.Utils.Models.ModeOfflineModel;
 import com.example.ventasrovianda.Utils.Models.ModeOfflineS;
 import com.example.ventasrovianda.Utils.Models.ModeOfflineSM;
 import com.example.ventasrovianda.Utils.Models.ModeOfflineSMP;
 import com.example.ventasrovianda.Utils.Models.ModeOfflineSincronize;
-import com.example.ventasrovianda.Utils.Models.ProductRovianda;
 import com.example.ventasrovianda.Utils.Models.ProductRoviandaToSale;
 import com.example.ventasrovianda.Utils.Models.ProductSaleDTO;
 import com.example.ventasrovianda.Utils.Models.ProductsOfflineMode;
 import com.example.ventasrovianda.Utils.Models.SaleDTO;
 import com.example.ventasrovianda.Utils.Models.SaleOfflineMode;
-import com.example.ventasrovianda.Utils.Models.TotalSoldedDTO;
+import com.example.ventasrovianda.Utils.Models.SincronizationResponse;
+import com.example.ventasrovianda.Utils.Models.SincronizeSingleSaleSuccess;
 import com.example.ventasrovianda.Utils.NumberDecimalFilter;
 import com.example.ventasrovianda.Utils.PrinterUtil;
 import com.example.ventasrovianda.Utils.ViewModelStore;
+import com.example.ventasrovianda.Utils.bd.entities.Client;
+import com.example.ventasrovianda.Utils.bd.entities.Debt;
+import com.example.ventasrovianda.Utils.bd.entities.DevolutionRequest;
+import com.example.ventasrovianda.Utils.bd.entities.DevolutionSubSale;
+import com.example.ventasrovianda.Utils.bd.entities.Product;
+import com.example.ventasrovianda.Utils.bd.entities.Sale;
+import com.example.ventasrovianda.Utils.bd.entities.SubSale;
+import com.example.ventasrovianda.Utils.bd.entities.UserDataInitial;
 import com.example.ventasrovianda.home.adapters.AdapterListProductSale;
 import com.example.ventasrovianda.home.presenter.HomePresenter;
 import com.example.ventasrovianda.home.presenter.HomePresenterContract;
@@ -78,17 +79,12 @@ import com.google.android.material.progressindicator.CircularProgressIndicator;
 import com.google.android.material.textfield.TextInputLayout;
 import com.google.gson.Gson;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
@@ -96,12 +92,11 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import static java.lang.Thread.sleep;
@@ -143,15 +138,19 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
     Gson parser;
 
     Boolean offlineActive = false;
-    AlertDialog loadModal = null;
+    Boolean sincronizateSession=false;
+
+    Client clientSelected=null;
+    UserDataInitial userData=null;
+    String dateSelected="";
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View v = inflater.inflate(R.layout.home, container, false);
         this.bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         navController = NavHostFragment.findNavController(this);
-        selectedClientTovisit = HomeViewArgs.fromBundle(getArguments()).getClientInVisit();
-        bluetoothDeviceSerializable = HomeViewArgs.fromBundle(getArguments()).getPrinterDevice();
+        //selectedClientTovisit = HomeViewArgs.fromBundle(getArguments()).getClientInVisit();
+        //bluetoothDeviceSerializable = HomeViewArgs.fromBundle(getArguments()).getPrinterDevice();
         this.userName = HomeViewArgs.fromBundle(getArguments()).getUserName();
         this.userNameTextView = v.findViewById(R.id.userName);
         userNameTextView.setText("Usuario: " + this.userName);
@@ -160,18 +159,19 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
         this.printerButton = v.findViewById(R.id.printerButton);
         //this.printerButton.setEnabled(false);
         //this.printerButton.setVisibility(View.INVISIBLE);
-        this.printerButton.setOnClickListener(this);
+
         this.printerConnected = false;
         this.agregarProductoButton = v.findViewById(R.id.AgregarProductoButton);
-        this.agregarProductoButton.setOnClickListener(this);
+
         this.amount = Float.parseFloat("0");
         logoutButton = v.findViewById(R.id.Logout_button);
         logoutButton.setOnClickListener(this);
+
         this.circularProgressIndicator = v.findViewById(R.id.loginLoadingSpinner);
         homeButton = v.findViewById(R.id.bottom_navigation_home);
         homeButton.setSelectedItemId(R.id.home_section);
         this.buscarClienteButton = v.findViewById(R.id.buscarClienteButton);
-        this.buscarClienteButton.setOnClickListener(this);
+
         this.clientInput = v.findViewById(R.id.cliente_input);
         this.clientSaeKey = v.findViewById(R.id.cliente_key_sae);
         this.clientName = v.findViewById(R.id.cliente_name);
@@ -183,24 +183,24 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
         this.amountTextView = v.findViewById(R.id.total);
         this.amountTextView.setText("Total :" + amount.toString());
         this.cobrarButton = v.findViewById(R.id.cobrarButton);
-        this.cobrarButton.setOnClickListener(this);
+
         this.endDayButton = v.findViewById(R.id.end_day_button);
         this.endDayButton.setOnClickListener(this);
-        this.eatTimeButton = v.findViewById(R.id.eat_time_button);
-        //this.eatTimeButton.setOnClickListener(this);
-        this.eatTimeButton.setVisibility(View.INVISIBLE);
-
-        //this.presenter.getCounterTimer(3);
-        //this.presenter.getStockOnline();
-        if (selectedClientTovisit != null) {
+        this.cobrarButton.setOnClickListener(this);
+        this.buscarClienteButton.setOnClickListener(this);
+        this.agregarProductoButton.setOnClickListener(this);
+        this.printerButton.setOnClickListener(this);
+        /*this.eatTimeButton = v.findViewById(R.id.eat_time_button);
+        this.eatTimeButton.setVisibility(View.INVISIBLE);*/
+        /*if (selectedClientTovisit != null) {
             currentClient = selectedClientTovisit;
             this.clientInput.getEditText().setEnabled(false);
             this.clientInput.getEditText().setText(String.valueOf(currentClient.getKeyClient()));
             presenter.findUser(currentClient.getKeyClient());
             buscarClienteButton.setEnabled(false);
-        }
+        }*/
         this.printerUtil = new PrinterUtil(getContext());
-        if(bluetoothDeviceSerializable!=null){
+        /*if(bluetoothDeviceSerializable!=null){
             if(this.bluetoothDeviceSerializable.isPrinterConnected()==true){
                 this.printerConnected=true;
                 this.printer = this.bluetoothDeviceSerializable.getBluetoothDevice();
@@ -209,8 +209,9 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
 
                 }
             }
-        }
+        }*/
         this.parser = new Gson();
+
         homeButton.setOnNavigationItemSelectedListener(new BottomNavigationView.OnNavigationItemSelectedListener() {
             @Override
             public boolean onNavigationItemSelected(@NonNull MenuItem item) {
@@ -241,103 +242,202 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
     }
 
 
-    @RequiresApi(api = Build.VERSION_CODES.N)
+
+    @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         viewModelStore = new ViewModelProvider(requireActivity()).get(ViewModelStore.class);
-        /*Boolean modified=false;
-        if(viewModelStore.getStore()!=null){
-            if(viewModelStore.getStore().getSalesMaked()!=null && viewModelStore.getStore().getSalesMaked().size()>0){
-                modified=true;
-            }
-        }*/
-        if (checkOffline()) {
-            offlineActive = true;
-            /*if(isNetworkAvailable() && modified) {
-                this.showLoadModal();
-                isLoading = true;
-                circularProgressIndicator.setVisibility(View.VISIBLE);
-                ModeOfflineSincronize modeOfflineSincronize = generateModeOfflineRequest();
-                presenter.UploadChanges(modeOfflineSincronize);
-            }*/
-            Toast.makeText(getContext(), "Modo offline", Toast.LENGTH_SHORT).show();
-        } else {
-            Toast.makeText(getContext(), "Modo online", Toast.LENGTH_SHORT).show();
-            offlineActive = false;
-        }
-    }
-
-    @RequiresApi(api = Build.VERSION_CODES.N)
-    @Override
-    public void sincronizeComplete() {
-        setModeOfflineBackup(viewModelStore.getStore());
-        Calendar calendar = Calendar.getInstance();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-        String dateParsed = dateFormat.format(calendar.getTime());
-        File root = new File(getContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "offline");
-        if (!root.exists()) {
-            root.mkdirs();
-        }
-        File gpxfile = new File(root, "offline-"+dateParsed+".rovi");
-        gpxfile.delete();
-        presenter.getStockOnline();
-
+        checkIfSincronizate();
+        checkSalesUnSincronized();
+        checkIfPrinterConfigured();
+        LocalDateTime ldt = LocalDateTime.now();
+        DateTimeFormatter formmat1 = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        System.out.println("FECHA_DE_HOY: "+ldt);
+        String dateParsed = formmat1.format(ldt);
+        dateSelected=dateParsed;
     }
 
 
 
-    @RequiresApi(api = Build.VERSION_CODES.N)
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    Handler handler = new Handler(Looper.getMainLooper());
 
-    public void setModeOfflineBackup(ModeOfflineModel modeOffline) {
-
-        String data = parser.toJson(modeOffline);
-        Calendar calendar = Calendar.getInstance();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-        String dateParsed = dateFormat.format(calendar.getTime());
-
-        try {
-
-            File root = new File(getContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "offline");
-            if (!root.exists()) {
-                root.mkdirs();
-            }
-            Boolean already = true;
-            File gpxfile=null;
-            int i=0;
-            while(already) {
-                gpxfile = new File(root, "offline-" + dateParsed + "-backup"+i+".rovi");
-                if(gpxfile.exists()){
-                    i++;
-                }else{
-                    already=false;
+    void checkSalesUnSincronized(){
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                List<Sale> sales = viewModelStore.getAppDatabase().saleDao().getAllSalesUnsincronized();
+                List<ModeOfflineSM> modeOfflineSMS = new ArrayList<>();
+                for(Sale sale : sales) {
+                    System.out.println("Sale without sincronization: "+sale.folio);
+                    ModeOfflineSM modeOfflineSM = new ModeOfflineSM();
+                    modeOfflineSM.setAmount(sale.amount);
+                    modeOfflineSM.setClientId(sale.clientId);
+                    modeOfflineSM.setCredit(sale.credit);
+                    modeOfflineSM.setDate(sale.date);
+                    modeOfflineSM.setFolio(sale.folio);
+                    modeOfflineSM.setPayedWith(sale.payed);
+                    modeOfflineSM.setSellerId(sale.sellerId);
+                    modeOfflineSM.setStatus(sale.status);
+                    modeOfflineSM.setStatusStr(sale.statusStr);
+                    modeOfflineSM.setTypeSale(sale.typeSale);
+                    List<SubSale> subSales = viewModelStore.getAppDatabase().subSalesDao().getSubSalesBySale(sale.folio);
+                    List<ModeOfflineSMP> modeOfflineSMPS = new ArrayList<>();
+                    for(SubSale subSale : subSales){
+                        ModeOfflineSMP modeOfflineSMP = new ModeOfflineSMP();
+                        modeOfflineSMP.setPresentationId(subSale.presentationId);
+                        modeOfflineSMP.setProductId(subSale.productId);
+                        modeOfflineSMP.setQuantity(subSale.quantity);
+                        modeOfflineSMP.setAmount(subSale.price);
+                        modeOfflineSMP.setAppSubSaleId(subSale.subSaleId);
+                        modeOfflineSMPS.add(modeOfflineSMP);
+                    }
+                    modeOfflineSM.setProducts(modeOfflineSMPS);
+                    modeOfflineSMS.add(modeOfflineSM);
                 }
+                List<DevolutionRequest> devolutionsRequests = viewModelStore.getAppDatabase().devolutionRequestDao().getAllUnsincronized();
+                List<DevolutionRequestServer> devolutionRequestServers=new ArrayList<>();
+                for(DevolutionRequest devolutionRequest :devolutionsRequests){
+                    DevolutionRequestServer  devolutionRequestServer = new DevolutionRequestServer();
+                    devolutionRequestServer.setCreateAt(devolutionRequest.createAt);
+                    devolutionRequestServer.setDevolutionId(devolutionRequest.devolutionRequestId);
+                    devolutionRequestServer.setFolio(devolutionRequest.folio);
+                    devolutionRequestServer.setObservations(devolutionRequest.description);
+                    devolutionRequestServer.setTypeDevolution(devolutionRequest.typeDevolution);
+                    List<DevolutionSubSaleRequestServer> devolutionSubSaleRequestServersModified = new ArrayList<>();
+                    List<DevolutionSubSaleRequestServer> devolutionSubSaleRequestServersOriginal = new ArrayList<>();
+                    List<DevolutionSubSale> devolutionSubSales = viewModelStore.getAppDatabase().devolutionSubSaleDao().findByDevolutionRequestId(devolutionRequest.devolutionRequestId);
+                    for(DevolutionSubSale devolutionSubSale : devolutionSubSales){
+                        DevolutionSubSaleRequestServer devolutionSubSaleRequestServer = new DevolutionSubSaleRequestServer();
+                        devolutionSubSaleRequestServer.setAmount(devolutionSubSale.price);
+                        devolutionSubSaleRequestServer.setAppSubSaleId(devolutionSubSale.subSaleId);
+                        devolutionSubSaleRequestServer.setCreateAt(devolutionRequest.createAt);
+                        devolutionSubSaleRequestServer.setPresentationId(devolutionSubSale.presentationId);
+                        devolutionSubSaleRequestServer.setProductId(devolutionSubSale.productId);
+                        devolutionSubSaleRequestServer.setQuantity(devolutionSubSale.quantity);
+                        devolutionSubSaleRequestServersModified.add(devolutionSubSaleRequestServer);
+                    }
+                    List<SubSale> subSales = viewModelStore.getAppDatabase().subSalesDao().getSubSalesBySale(devolutionRequest.folio);
+                    for(SubSale subSale : subSales){
+                        DevolutionSubSaleRequestServer devolutionSubSaleRequestServer = new DevolutionSubSaleRequestServer();
+                        devolutionSubSaleRequestServer.setAmount(subSale.price);
+                        devolutionSubSaleRequestServer.setAppSubSaleId(subSale.subSaleId);
+                        devolutionSubSaleRequestServer.setCreateAt(devolutionRequest.createAt);
+                        devolutionSubSaleRequestServer.setPresentationId(subSale.presentationId);
+                        devolutionSubSaleRequestServer.setProductId(subSale.productId);
+                        devolutionSubSaleRequestServer.setAppSubSaleId(subSale.subSaleId);
+                        devolutionSubSaleRequestServer.setQuantity(subSale.quantity);
+                        devolutionSubSaleRequestServersOriginal.add(devolutionSubSaleRequestServer);
+                    }
+                    devolutionRequestServer.setProductsNew(devolutionSubSaleRequestServersModified);
+                    devolutionRequestServer.setProductsOld(devolutionSubSaleRequestServersOriginal);
+                    devolutionRequestServers.add(devolutionRequestServer);
+                }
+                List<Debt> debts = viewModelStore.getAppDatabase().debtDao().getAllSalesWithoutSincronization();
+                List<DebPayedRequest> debtsPayed = new ArrayList<>();
+                for(Debt debt : debts){
+                    if(debt.sincronized==false && debt.deleted==false){
+                        DebPayedRequest debPayedRequest = new DebPayedRequest();
+                        Sale sale = viewModelStore.getAppDatabase().saleDao().getByFolio(debt.folio);
+                        debPayedRequest.setAmountPayed(sale.amount);
+                        debPayedRequest.setDatePayed(debt.createAt);
+                        debPayedRequest.setFolio(sale.folio);
+                        debPayedRequest.setPayedType(debt.payedType);
+                        debtsPayed.add(debPayedRequest);
+                    }
+                }
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if(modeOfflineSMS.size()>0 || debtsPayed.size()>0 || devolutionRequestServers.size()>0) {
+                            showNotificationSincronization("Sincronizando...");
+                            presenter.sincronizeSales(modeOfflineSMS,debtsPayed,devolutionRequestServers,viewModelStore.getStore().getSellerId());
+                        }else{
+                            showNotificationSincronization("Nada por sincronizar...");
+                        }
+                    }
+                });
             }
-
-            FileWriter writer = new FileWriter(gpxfile);
-            writer.append(data);
-            writer.flush();
-            writer.close();
-
-            viewModelStore.saveStore(new ModeOfflineModel());
-
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
+        });
     }
-
 
     @Override
-    public void sincronizeError() {
-        isLoading=false;
-        circularProgressIndicator.setVisibility(View.GONE);
-        Toast.makeText(getContext(),"Occurrio un error al sincronizar, Verifica tu conexión",Toast.LENGTH_SHORT).show();
-        dismissLoadModal();
+    public void completeSincronzation(SincronizationResponse sincronizationResponse) {
+
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+
+                for(int i=0;i<sincronizationResponse.getSalesSincronized().size();i++){
+                    System.out.println("Sincronized: "+sincronizationResponse.getSalesSincronized().get(i).getFolio());
+                    viewModelStore.getAppDatabase().saleDao().updateSaleId(sincronizationResponse.getSalesSincronized().get(i).getSaleId(),sincronizationResponse.getSalesSincronized().get(i).getFolio());
+                }
+                for(String folio  : sincronizationResponse.getDebtsSicronized()){
+                    Debt debt = viewModelStore.getAppDatabase().debtDao().getDebtByFolio(folio);
+                    debt.sincronized=true;
+                    viewModelStore.getAppDatabase().debtDao().updateDebtSincronization(debt);
+                }
+                for(String folio : sincronizationResponse.getDevolutionsSincronized()){
+                    DevolutionRequest devolutionRequest = viewModelStore.getAppDatabase().devolutionRequestDao().findDevolutionRequestByFolio(folio);
+                    devolutionRequest.sincronized=1;
+                    viewModelStore.getAppDatabase().devolutionRequestDao().updateDevolutionRequest(devolutionRequest);
+                }
+
+                for(String folio : sincronizationResponse.getDevolutionsAccepted()){
+                    DevolutionRequest devolutionRequest = viewModelStore.getAppDatabase().devolutionRequestDao().findDevolutionRequestByFolio(folio);
+                    devolutionRequest.status="ACCEPTED";
+                    viewModelStore.getAppDatabase().devolutionRequestDao().updateDevolutionRequest(devolutionRequest);
+                }
+                for(String folio : sincronizationResponse.getDevolutionsRejected()){
+                    DevolutionRequest devolutionRequest = viewModelStore.getAppDatabase().devolutionRequestDao().findDevolutionRequestByFolio(folio);
+                    devolutionRequest.status="DECLINED";
+                    viewModelStore.getAppDatabase().devolutionRequestDao().updateDevolutionRequest(devolutionRequest);
+                }
+
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        System.out.println("Sincronized Complete");
+                    }
+                });
+            }
+        });
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.N)
+   /* @Override
+    public void markSincronizedSale(String folio, Integer saleId,List<ModeOfflineSM> ModeOfflineSMS, Integer index) {
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                viewModelStore.getAppDatabase().saleDao().updateStatusStr(saleId,folio);
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        presenter.sincronizeSingleSale(ModeOfflineSMS,index);
+                    }
+                });
+            }
+        });
+    }*/
+
+    @Override
+    public void showNotificationSincronization(String msg) {
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(getContext(), "rovisapi")
+                .setSmallIcon(R.drawable.ic_logorov)
+                .setContentTitle("Sistema Rovianda")
+                .setContentText(msg)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
+        NotificationManagerCompat notificationManager = NotificationManagerCompat.from(getContext());
+        notificationManager.notify(1, builder.build());
+    }
+
+    @Override
+    public void hiddeNotificationSincronizastion() {
+        NotificationManagerCompat notificationManager = NotificationManagerCompat.from(getContext());
+        notificationManager.cancel(1);
+    }
+
+    /*@RequiresApi(api = Build.VERSION_CODES.N)
     ModeOfflineSincronize generateModeOfflineRequest(){
         ModeOfflineSincronize modeOfflineSincronize= new ModeOfflineSincronize();
 
@@ -402,28 +502,9 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
         }
 
         return modeOfflineSincronize;
-    }
+    }*/
 
-    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
-    Boolean checkOffline(){
-        Calendar calendar = Calendar.getInstance();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-        String dateParsed = dateFormat.format(calendar.getTime());
-        File root = new File(getContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "offline");
-        File gpxfile = new File(root, "offline-"+dateParsed+".rovi");
-        return gpxfile.exists();
-    }
 
-    @Override
-    public void isCountingTime(int typeUsed) {
-        if (typeUsed == 1) {
-            this.eatTimeButton.setTextColor(Color.parseColor("#28BF2E"));
-        } else if (typeUsed == 2) {
-            this.eatTimeButton.setTextColor(Color.parseColor("#FFC107"));
-        } else if (typeUsed == 3) {
-            this.eatTimeButton.setTextColor(Color.GRAY);
-        }
-    }
 
     void goToCotizaciones() {
         navController.navigate(HomeViewDirections.actionHomeViewToCotizacionesView(this.userName).setUserName(this.userName).setClientInVisit(this.selectedClientTovisit).setPrinterDevice(bluetoothDeviceSerializable));
@@ -452,11 +533,23 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
     boolean paying = false;
 
     void logout() {
-        AlertDialog dialog = new MaterialAlertDialogBuilder(getContext()).setTitle("Cerrar sesion")
-                .setMessage("¿Está seguro que desea cerrar sesion?").setPositiveButton("Aceptar", new DialogInterface.OnClickListener() {
+        AlertDialog dialog = new MaterialAlertDialogBuilder(getContext()).setTitle("Cerrar sesión")
+                .setMessage("¿Está seguro que desea cerrar sesión?").setPositiveButton("Aceptar", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        presenter.doLogout();
+                        executor.execute(new Runnable() {
+                            @Override
+                            public void run() {
+                                viewModelStore.getAppDatabase().userDataInitialDao().updateAllLogedInFalse();
+                                handler.post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        presenter.doLogout();
+                                    }
+                                });
+                            }
+                        });
+
                     }
                 }).setNegativeButton("Cancelar", new DialogInterface.OnClickListener() {
                     @Override
@@ -499,77 +592,46 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
     @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     public void onClick(View v) {
+
         switch (v.getId()) {
             case R.id.Logout_button:
                 logout();
                 break;
             case R.id.printerButton:
-                if(this.printerConnected==true){
-                   this.printerConnected=false;
-                   this.printerUtil.desconect();
-                   this.printer=null;
-                   this.bluetoothDeviceSerializable.setPrinterConnected(false);
-                   this.printerNoConnected();
-                }else if(isLoading==false) {
-                    activatePrinter();
-                    isLoading=true;
+                if (this.sincronizateSession) {
+                    if (this.printerConnected == true) {
+                        this.printerConnected = false;
+                        if(this.printerUtil!=null) {
+                            this.printerUtil.desconect();
+                            this.printer = null;
+                        }
+                        this.printerNoConnected();
+                    } else if (isLoading == false) {
+                        activatePrinter();
+                        isLoading = true;
+                    }
                 }
                 break;
             case R.id.buscarClienteButton:
-                if (this.clientInput.getEditText().getText().toString().trim().isEmpty()) {
-                    this.setErrorClientInput("Campo obligatorio");
-                } else {
-                    try {
-                        if (!offlineActive) {
-                            isLoading = true;
-                            circularProgressIndicator.setVisibility(View.VISIBLE);
-                            presenter.findUser(Integer.parseInt(this.clientInput.getEditText().getText().toString().trim()));
-                        } else {
-                            ClientOfflineMode client = null;
-                            List<ClientOfflineMode> clients = viewModelStore.getStore().getClients();
-                            for (ClientOfflineMode clientItem : clients) {
-                                if (clientItem.getKeyClient().equals(this.clientInput.getEditText().getText().toString().trim())) {
-                                    client = clientItem;
-                                }
-                            }
-                            if (client == null) {
-                                setErrorClientInput("No se encontro el cliente");
-                            } else {
-                                currentClientOffline = client;
-                                setClientOffclient(currentClientOffline);
-                            }
-
-
-                        }
-                    } catch (NumberFormatException e) {
-                        this.setErrorClientInput("Código invalido");
+                if (this.sincronizateSession) {
+                    if (this.clientInput.getEditText().getText().toString().trim().isEmpty()) {
+                        this.setErrorClientInput("Campo obligatorio");
+                    } else {
+                        findClient(Integer.parseInt(this.clientInput.getEditText().getText().toString()));
                     }
                 }
                 break;
             case R.id.AgregarProductoButton:
-                if (offlineActive == false) {
-                    if (currentClient != null) {
+                if (this.sincronizateSession) {
+                    if (clientSelected != null) {
                         if (isLoading == false) {
                             if (!this.weightProduct.getEditText().getText().toString().trim().isEmpty()) {
                                 isLoading = true;
                                 this.circularProgressIndicator.setVisibility(View.VISIBLE);
-                                presenter.findProduct(this.keyProductInput.getEditText().getText().toString().trim());
+                                findProduct(this.keyProductInput.getEditText().getText().toString());
                             } else {
-                                this.setErrorProductWeightInput("Por favor indica un peso o numero de piezas");
+                                this.setErrorProductWeightInput("Por favor indica un peso o número de piezas");
                             }
-                        }
-                    } else {
-                        this.setErrorClientInput("Por favor selecciona un cliente");
-                    }
-                } else {
-                    if (currentClientOffline != null) {
-                        if (!this.weightProduct.getEditText().getText().toString().trim().isEmpty()) {
-                            isLoading = true;
-                            this.circularProgressIndicator.setVisibility(View.VISIBLE);
-                            //presenter.findProduct(this.keyProductInput.getEditText().getText().toString().trim());
-                            findProductOffline(this.keyProductInput.getEditText().getText().toString().trim());
-                        } else {
-                            this.setErrorProductWeightInput("Por favor indica un peso o numero de piezas");
                         }
                     } else {
                         this.setErrorClientInput("Por favor selecciona un cliente");
@@ -577,71 +639,158 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
                 }
                 break;
             case R.id.cobrarButton:
-                System.out.println("Is paying: " + paying);
-                if (paying == false) {
-                    if(carSale.size()>0) {
-                        paying = true;
-                        System.out.println("Paying true: " + paying);
-                        payProducts();
-                    }else{
-                        Toast.makeText(getContext(),"No haz agregado productos",Toast.LENGTH_SHORT).show();
+                if(this.sincronizateSession) {
+                    System.out.println("Is paying: " + paying);
+                    if (paying == false) {
+                        if (carSale.size() > 0) {
+                            paying = true;
+                            System.out.println("Paying true: " + paying);
+                            payProducts();
+                        } else {
+                            Toast.makeText(getContext(), "No haz agregado productos", Toast.LENGTH_SHORT).show();
+                        }
                     }
                 }
                 break;
             case R.id.end_day_button:
-                if (!offlineActive) {
-                    if (isLoading == false) {
-                        isLoading = true;
-                        this.circularProgressIndicator.setVisibility(View.VISIBLE);
-                        this.getEndDayTicket();
-                    }
-                } else {
-                    if (isLoading == false) {
-                        isLoading = true;
-                        this.circularProgressIndicator.setVisibility(View.VISIBLE);
-                        this.getEndDayTicketOffline();
-                    }
+                if(this.sincronizateSession) {
+
+                        if (isLoading == false) {
+
+                            showDatePicker();
+
+                        }
                 }
                 break;
-            case R.id.eat_time_button:
-                if (isLoading == false) {
-                    isLoading = true;
-                    presenter.getCounterTimer(1);
-                    this.circularProgressIndicator.setVisibility(View.VISIBLE);
-                }
-                break;
-            case R.id.terminar_timer:
-                if (isLoading == false) {
-                    isLoading = true;
-                    this.circularProgressIndicator.setVisibility(View.VISIBLE);
-                    System.out.println("Terminado");
-                    timerActive = false;
-                    presenter.endEatTime();
-                    if (dialogTimer.isShowing()) {
-                        dialogTimer.dismiss();
-                    }
-                }
-                break;
+
         }
+
     }
 
-    void findProductOffline(String productKeySae) {
+    void showDatePicker(){
+        DatePickerFragment newFragment = DatePickerFragment.newInstance(new DatePickerDialog.OnDateSetListener() {
+            @Override
+            public void onDateSet(DatePicker view, int year, int month, int dayOfMonth) {
+                String monthStr = String.valueOf(month+1);
+                String day = String.valueOf(dayOfMonth);
+                if((month+1)<10) monthStr="0"+monthStr;
+                if(dayOfMonth<10) day="0"+day;
+                dateSelected = year+"-"+monthStr+"-"+day;
+                System.out.println("Fecha seleccionada: "+dateSelected);
+                getEndDayTicketOffline(dateSelected);
+            }
+        });
+
+        newFragment.show(getActivity().getSupportFragmentManager(),"datePicker");
+    }
+
+    void findProduct(String productKey){
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                Product product = viewModelStore.getAppDatabase().productDao().getProductByProduct(productKey,viewModelStore.getStore().getSellerId());
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                       if(product==null){
+                           findByProductEnd("%"+productKey);
+                       }else{
+                           addProductToSaleCar(product);
+                       }
+                    }
+                });
+            }
+        });
+    }
+
+    void findByProductEnd(String productKey){
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                Product product = viewModelStore.getAppDatabase().productDao().getProductByProduct(productKey,viewModelStore.getStore().getSellerId());
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if(product==null){
+                            keyProductInput.getEditText().setError("No existe el producto indicado");
+                            isLoading=false;
+                            circularProgressIndicator.setVisibility(View.GONE);
+                        }else{
+                            addProductToSaleCar(product);
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    void findClient(Integer clientKey){
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                Client client = viewModelStore.getAppDatabase().clientDao().getClientByKey(clientKey,viewModelStore.getStore().getSellerId());
+
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if(client!=null){
+                            clientSelected=client;
+                            circularProgressIndicator.setVisibility(View.GONE);
+                            isLoading = false;
+                            clientInput.getEditText().setError(null);
+                            clientSaeKey.setText("Cliente: " + client.clientKey);
+                            clientName.setText(client.name);
+                            clientSaeKey.setTextColor(Color.parseColor("#236EF2"));
+                            clientName.setTextColor(Color.parseColor("#236EF2"));
+                            carSale = new ArrayList<>();
+                        }else{
+                            clientInput.getEditText().setError("Cliente no existe");
+                        }
+                    }
+                });
+
+            }
+        });
+    }
+
+    void checkIfSincronizate(){
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                UserDataInitial userDataInitials = viewModelStore.getAppDatabase().userDataInitialDao().getDetailsInitialByUid(viewModelStore.getStore().getSellerId());
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if(userDataInitials==null){
+                            genericMessage("Alerta Sistema","Requiere de su primera sincronización");
+                            sincronizateSession=false;
+                        }else{
+                            userData=userDataInitials;
+                            sincronizateSession=true;
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    /*void findProductOffline(String productKeySae) {
         ProductRoviandaToSale productRovianda = null;
         for (InventoryOfflineMode productInve : viewModelStore.getStore().getInventory()) {
             if (productInve.getCodeSae().equals(productKeySae) ) {
                 ProductRoviandaToSale productRoviandaToSale = new ProductRoviandaToSale();
                 productRoviandaToSale.setNameProduct(productInve.getProductName());
                 productRoviandaToSale.setKeySae(productInve.getCodeSae());
-                productRoviandaToSale.setWeight(Float.parseFloat("100"));
+                productRoviandaToSale.setWeight(Float.parseFloat(viewModelStore.getStore().getLimitOfSales().toString()));
 
                 if(productInve.getUniMed().equals("PZ")) {
                     productRoviandaToSale.setIsPz(true);
                     productRoviandaToSale.setWeight(Float.parseFloat("100"));
-                    productRoviandaToSale.setQuantity(productInve.getPieces());
+                    productRoviandaToSale.setQuantity(Float.parseFloat(viewModelStore.getStore().getLimitOfSales().toString()));
                 }else{
                     productRoviandaToSale.setIsPz(false);
                     productRoviandaToSale.setWeight(productInve.getWeight());
-                    productRoviandaToSale.setQuantity(Float.parseFloat("100"));
+                    productRoviandaToSale.setQuantity(Float.parseFloat(viewModelStore.getStore().getLimitOfSales().toString()));
                 }
                 productRoviandaToSale.setPrice(Float.parseFloat(productInve.getPrice().toString()));
                 productRoviandaToSale.setPresentationType(productInve.getPresentation());
@@ -666,11 +815,11 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
                     if (productInve.getUniMed().equals("PZ")) {
                         productRoviandaToSale.setIsPz(true);
                         productRoviandaToSale.setWeight(Float.parseFloat("300"));
-                        productRoviandaToSale.setQuantity(productInve.getPieces());
+                        productRoviandaToSale.setQuantity(Float.parseFloat(viewModelStore.getStore().getLimitOfSales().toString()));
                     } else {
                         productRoviandaToSale.setIsPz(false);
                         productRoviandaToSale.setWeight(productInve.getWeight());
-                        productRoviandaToSale.setQuantity(Float.parseFloat("300"));
+                        productRoviandaToSale.setQuantity(Float.parseFloat(viewModelStore.getStore().getLimitOfSales().toString()));
                     }
                     productRoviandaToSale.setPrice(Float.parseFloat(productInve.getPrice().toString()));
                     productRoviandaToSale.setPresentationType(productInve.getPresentation());
@@ -686,33 +835,15 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
             }
         }
         if (productRovianda != null) {
-            addProductToSaleCar(productRovianda);
+            //addProductToSaleCar(productRovianda);
         } else {
             Toast.makeText(getContext(), "No existe el producto en inventario", Toast.LENGTH_SHORT).show();
             isLoading = false;
             circularProgressIndicator.setVisibility(View.GONE);
         }
-    }
+    }*/
 
-    @Override
-    public void confirmEatTime() {
-        AlertDialog dialog = new MaterialAlertDialogBuilder(getContext()).setTitle("Hora de comida")
-                .setMessage("¿Seguro que desea habilitar la hora de comida?, solo dispone de 30 minutos.").setPositiveButton("Aceptar", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        presenter.startEatTime();
-                    }
-                }).setNegativeButton("Cancelar", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        dialog.dismiss();
-                        isLoading = false;
-                        circularProgressIndicator.setVisibility(View.GONE);
-                    }
-                }).setCancelable(false).create();
-        dialog.show();
-    }
-
+/*
     void getEndDayTicket() {
 
         if (this.printerConnected == true) {
@@ -723,7 +854,7 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
             isLoading = false;
         }
     }
-
+*/
 
     int selectIndexPrinter;
 
@@ -756,7 +887,7 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
                         circularProgressIndicator.setVisibility(View.GONE);
                         isLoading=false;
                     }
-                }).setPositiveButton("Conectar", new DialogInterface.OnClickListener() {
+                }).setPositiveButton("Enlazar", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         System.out.println("Index: "+which);
@@ -773,16 +904,25 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
 
                                         connectionPrinterSuccess();
                                         printerConnected();
-                                    }else{
+                                    }else {
                                         showErrorConnectingPrinter();
                                         printerNoConnected();
 
                                     }
-                            if(bluetoothDeviceSerializable==null) {
-                                bluetoothDeviceSerializable = new BluetoothDeviceSerializable();
-                            }
-                            bluetoothDeviceSerializable.setBluetoothDevice(printer);
-                            bluetoothDeviceSerializable.setPrinterConnected(true);
+                            executor.execute(new Runnable() {
+                                @Override
+                                public void run() {
+                                    viewModelStore.getAppDatabase().userDataInitialDao().updatePrinterAddress(viewModelStore.getStore().getSellerId(),printer.getAddress());
+                                    handler.post(new Runnable() {
+
+                                        @Override
+                                        public void run() {
+                                            System.out.println("Printer saved");
+                                        }
+                                    });
+                                }
+                            });
+
                         }
                     }
                 }).setSingleChoiceItems(bluetoothDevices, checkedItem, new DialogInterface.OnClickListener() {
@@ -799,8 +939,8 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
     @Override
     public void showErrorConnectingPrinter() {
         isLoading = false;
-        AlertDialog dialog = new MaterialAlertDialogBuilder(getContext()).setTitle("Error de conexión")
-                .setMessage("No se pudo conectar a la impresora ").setPositiveButton("Aceptar", new DialogInterface.OnClickListener() {
+        AlertDialog dialog = new MaterialAlertDialogBuilder(getContext()).setTitle("Error de enlace")
+                .setMessage("No se pudo enlazar a la impresora ").setPositiveButton("Aceptar", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
 
@@ -825,8 +965,8 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
     @Override
     public void connectionPrinterSuccess() {
         isLoading = false;
-        AlertDialog dialog = new MaterialAlertDialogBuilder(getContext()).setTitle("Conexión con impresora")
-                .setMessage("Conectado a la impresora : " + printerName).setPositiveButton("Aceptar", new DialogInterface.OnClickListener() {
+        AlertDialog dialog = new MaterialAlertDialogBuilder(getContext()).setTitle("Enlace de impresora")
+                .setMessage("Enlace exitoso con impresora : " + printerName).setPositiveButton("Aceptar", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
 
@@ -853,6 +993,38 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
                 findPrinter(deviceList);
             }
         }
+    }
+
+    void checkIfPrinterConfigured(){
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+
+                UserDataInitial userDataInitial = viewModelStore.getAppDatabase().userDataInitialDao().getDetailsInitialByUid(viewModelStore.getStore().getSellerId());
+
+
+                handler.post(new Runnable() {
+                    @RequiresApi(api = Build.VERSION_CODES.N)
+                    @Override
+                    public void run() {
+                        if(userDataInitial!=null && userDataInitial.printerMacAddress!=null){
+                            BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+                            Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
+                            for(BluetoothDevice bluetoothDevice :pairedDevices){
+                                if(bluetoothDevice.getAddress().equals(userDataInitial.printerMacAddress)){
+                                    printer=bluetoothDevice;
+                                    printerConnected=true;
+                                    printerConnected();
+                                }
+                            }
+                            if(!printerConnected){
+                                printerNoConnected();
+                            }
+                        }
+                    }
+                });
+            }
+        });
     }
 
 
@@ -913,7 +1085,7 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
         dialog.show();
     }
 
-    @Override
+    /*@Override
     public void setClient(ClientDTO client) {
         this.circularProgressIndicator.setVisibility(View.GONE);
         isLoading = false;
@@ -925,38 +1097,38 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
         this.clientName.setTextColor(Color.parseColor("#236EF2"));
         this.carSale = new ArrayList<>();
         fillList();
-    }
+    }*/
 
-    public void setClientOffclient(ClientOfflineMode client) {
+    /*public void setClientOffclient(Client client) {
         this.circularProgressIndicator.setVisibility(View.GONE);
         isLoading = false;
         this.clientInput.getEditText().setError(null);
         ClientDTO clientDTO = new ClientDTO();
-        clientDTO.setTypeClient(client.getType());
-        clientDTO.setKeyClient(Integer.parseInt(client.getKeyClient()));
-        clientDTO.setName(client.getClientName());
-        clientDTO.setId(client.getClientId());
+        clientDTO.setTypeClient(client.type);
+        clientDTO.setKeyClient(client.clientKey);
+        clientDTO.setName(client.name);
+        clientDTO.setId(client.clientId);
         this.currentClient = clientDTO;
-        this.clientSaeKey.setText("Cliente: " + client.getKeyClient());
-        this.clientName.setText(client.getClientName());
+        this.clientSaeKey.setText("Cliente: " + client.clientKey);
+        this.clientName.setText(client.name);
         this.clientSaeKey.setTextColor(Color.parseColor("#236EF2"));
         this.clientName.setTextColor(Color.parseColor("#236EF2"));
         this.carSale = new ArrayList<>();
         fillList();
-    }
+    }*/
 
     List<ProductRoviandaToSale> carSale;
 
-    @Override
-    public void addProductToSaleCar(ProductRoviandaToSale productRoviandaToSale) {
+
+    public void addProductToSaleCar(Product productRoviandaToSale) {
         isLoading = false;
         this.circularProgressIndicator.setVisibility(View.GONE);
         Float countRequested;
-        System.out.println("Es pieza: " + productRoviandaToSale.getKeySae() + " " + productRoviandaToSale.isIsPz());
-        if (productRoviandaToSale.isIsPz()) {
+        System.out.println("Es pieza: " + productRoviandaToSale.productKey + " " + productRoviandaToSale.uniMed);
+        if (productRoviandaToSale.uniMed.toLowerCase().equals("pz")) {
             countRequested = Float.parseFloat(String.valueOf(Math.round(Float.parseFloat(this.weightProduct.getEditText().getText().toString()))));
             if (countRequested == 0) {
-                genericMessage("El producto se vende por piezas", "Introduce un numero entero.");
+                genericMessage("El producto se vende por piezas", "Introduce un número entero.");
                 return;
             }
         } else {
@@ -965,33 +1137,44 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
         if (countRequested > 0) {
             Float totalResguarded = Float.parseFloat("0");
             for (ProductRoviandaToSale product : carSale) {
-                if (product.getKeySae().equals(productRoviandaToSale.getKeySae())) {
+                if (product.getKeySae().equals(productRoviandaToSale.productKey)) {
                     totalResguarded += product.getWeight();
                 }
             }
             Float totalResguardedTemp = totalResguarded + countRequested;
-            if (productRoviandaToSale.getQuantity() >= totalResguardedTemp) {
-                productRoviandaToSale.setWeight(countRequested);
+            if (productRoviandaToSale.quantity >= totalResguardedTemp) {
+
                 int index = -1;
                 for (int i = 0; i < carSale.size(); i++) {
                     ProductRoviandaToSale item = carSale.get(i);
-                    if (item.getPresentationId() == productRoviandaToSale.getPresentationId()) {
+                    if (item.getPresentationId() == productRoviandaToSale.presentationId) {
                         index = i;
                         item.setWeight(
-                                item.getWeight() + productRoviandaToSale.getWeight()
+                                item.getWeight() + countRequested
                         );
+                        item.setQuantity(item.getQuantity()+countRequested);
                     }
                 }
                 if (index == -1) {
-                    carSale.add(productRoviandaToSale);
+                    ProductRoviandaToSale productRoviandaToSale1 = new ProductRoviandaToSale();
+                    productRoviandaToSale1.setIsPz(productRoviandaToSale.uniMed.toLowerCase().equals("pz"));
+                    productRoviandaToSale1.setKeySae(productRoviandaToSale.productKey);
+                    productRoviandaToSale1.setNameProduct(productRoviandaToSale.name);
+                    productRoviandaToSale1.setPresentationType(productRoviandaToSale.presentationName);
+                    productRoviandaToSale1.setPrice(productRoviandaToSale.price);
+                    productRoviandaToSale1.setPresentationId(productRoviandaToSale.presentationId);
+                    productRoviandaToSale1.setProductId(productRoviandaToSale.productId);
+                    productRoviandaToSale1.setWeightOriginal(productRoviandaToSale.weightOriginal);
+                    productRoviandaToSale1.setWeight(countRequested);
+                    productRoviandaToSale1.setQuantity(countRequested);
+                    carSale.add(productRoviandaToSale1);
                 }
                 this.keyProductInput.getEditText().setText(null);
                 this.weightProduct.getEditText().setText(null);
                 fillList();
             } else {
-                genericMessage("Error en stock", "Solo tienes: " + (productRoviandaToSale.getQuantity() - totalResguarded) + " para vender");
+                genericMessage("Error en stock", "Solo tienes: " + (productRoviandaToSale.quantity - totalResguarded) + " para vender");
             }
-
         }
     }
 
@@ -1054,6 +1237,7 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
     }*/
 
     void goToAnotherSection(int option) {
+
         if (currentClient != null || carSale.size() > 0) {
             AlertDialog dialog = new MaterialAlertDialogBuilder(getContext()).setTitle("¿Seguro que desea salir de la sección?")
                     .setNegativeButton("Cancelar", new DialogInterface.OnClickListener() {
@@ -1081,22 +1265,22 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
     void navigate(int section) {
         if (section == 2) {
             goToCotizaciones();
-        } else if (section == 3) {
+        } else if (section == 3 && sincronizateSession) {
             goToClient();
-        } else if (section == 4) {
+        } else if (section == 4 && sincronizateSession) {
             goToPedidos();
         }
     }
 
     int selectionPay = 0;
-    String[] contadoOptions = {"Efectivo", "Transferencia", "Cheque"};
-    String[] creditoOptions = {"Crédito", "Efectivo"};
+    String[] contadoOptions = {"EFECTIVO", "TRANSFERENCIA", "CHEQUE"};
+    String[] creditoOptions = {"CREDITO", "EFECTIVO"};
 
     void showOptionsPayed() {
         String[] selectMode = null;
 
-        if (currentClient != null) {
-            if (currentClient.getTypeClient().equals("CONTADO")) {
+        if (clientSelected != null) {
+            if (clientSelected.type.equals("CONTADO")) {
                 selectMode = contadoOptions;
             } else {
                 selectMode = creditoOptions;
@@ -1131,200 +1315,203 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
         }
     }
 
-    void getEndDayTicketOffline() {
-
-        Double weightG = Double.parseDouble("0");
-        int totalTickets=0;
-        int totalCanceled=0;
-        Calendar calendar = Calendar.getInstance();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-        String dateParsed = dateFormat.format(calendar.getTime());
-        String ticket = "\nReporte de cierre\nVendedor: "+viewModelStore.getStore().getUsername()+"\nFecha: "+dateParsed+"\n------------------------\n";
-        ticket+="ART.   DESC    CANT    PRECIO  IMPORTE\n";
-        Map<String,String> skus = new HashMap<>();
-        Map<String,Float> pricesBySku = new HashMap<>();
-        Map<String,Float> weightTotal = new HashMap<>();
-        Map<String,Float> piecesTotal = new HashMap<>();
-        Map<String,Float> amountTotal = new HashMap<>();
-        Float efectivo=Float.parseFloat("0");
-        Float credito=Float.parseFloat("0");
-        Float transferencia=Float.parseFloat("0");
-        Float cheque=Float.parseFloat("0");
-        Float creditCob = Float.parseFloat("0");
-        String clientsStr="";
-        if(viewModelStore.getStore()!=null){
-        if( viewModelStore.getStore().getSales()!=null) {
-            for (SaleOfflineMode sale : viewModelStore.getStore().getSales()) {
-
-                if(!sale.getStatusStr().equals("CANCELED")) {
-                    totalTickets++;
-                    for (ProductsOfflineMode productOffline : sale.getProducts()) {
-                        String productName = skus.get(productOffline.getProductKey());
-                        if (productName == null) {
-                            skus.put(productOffline.getProductKey(), productOffline.getProductName() + " " + productOffline.getProductPresentationType());
-                        }
-                        Float weight = weightTotal.get(productOffline.getProductKey());
-                        if (weight == null) {
-                            Float weightByProduct = (productOffline.getType().equals("PZ") ? productOffline.getQuantity() * productOffline.getWeightStandar() : productOffline.getQuantity());
-                            weightTotal.put(productOffline.getProductKey(), weightByProduct);
-                            weightG += weightByProduct;
-                        } else {
-                            weight += (productOffline.getType().equals("PZ") ? productOffline.getQuantity() * productOffline.getWeightStandar() : productOffline.getQuantity());
-                            weightTotal.put(productOffline.getProductKey(), weight);
-                            weightG += (productOffline.getType().equals("PZ") ? productOffline.getQuantity() * productOffline.getWeightStandar() : productOffline.getQuantity());
-                            ;
-                        }
-
-                        Float amountByProduct = pricesBySku.get(productOffline.getProductKey());
-                        if (amountByProduct == null) {
-                            Float amount = productOffline.getPrice();
-                            pricesBySku.put(productOffline.getProductKey(), amount);
-                        }
-
-                        Float amountSubSale = amountTotal.get(productOffline.getProductKey());
-                        if (amountSubSale == null) {
-                            Float amount = productOffline.getPrice()*productOffline.getQuantity();
-                            amountTotal.put(productOffline.getProductKey(), amount);
-                        }else{
-                            amountSubSale+=productOffline.getPrice()*productOffline.getQuantity();
-                            amountTotal.put(productOffline.getProductKey(), amountSubSale);
-                        }
-                        if(productOffline.getType().equals("PZ")){
-                            Float piecesOfProduct = piecesTotal.get(productOffline.getProductKey());
-                            if(piecesOfProduct==null){
-                                piecesTotal.put(productOffline.getProductKey(),productOffline.getQuantity());
-                            }else{
-                                piecesTotal.put(productOffline.getProductKey(),(piecesOfProduct+productOffline.getQuantity()));
-                            }
-                        }
-                    }
-
-                    clientsStr += "\n" + sale.getFolio() + " " + sale.getClientName() +" "+sale.getKeyClient()+ "\n $" + sale.getAmount() + " " + ((sale.getTypeSale().equals("Crédito") || sale.getTypeSale().equals("CREDITO")) ? "C" : "") + " " + (sale.getStatusStr().equals("CANCELED") ? "CANCELADO" : "");
-
-                    if (sale.getTypeSale().equals("CREDITO") || sale.getTypeSale().equals("Crédito")) {
-                        credito += sale.getAmount();
-                    } else if (sale.getTypeSale().equals("Transferencia")) {
-                        transferencia += sale.getAmount();
-                    } else if (sale.getTypeSale().equals("Efectivo")) {
-                        efectivo += sale.getAmount();
-                    } else if (sale.getTypeSale().equals("Cheque")) {
-                        cheque += sale.getAmount();
-                    }
-                }else{
-                    totalCanceled++;
-                    clientsStr += "\n" + sale.getFolio() + " " + sale.getClientName() +" "+sale.getKeyClient()+ "\n $" + sale.getAmount() + " " + ((sale.getTypeSale().equals("Crédito") || sale.getTypeSale().equals("CREDITO")) ? "C" : "") + " " + (sale.getStatusStr().equals("CANCELED") ? "CANCELADO" : "");
-                }
-            }
-        }
-        if(viewModelStore.getStore().getSalesMaked()!=null) {
-            for (SaleDTO saleDTO : viewModelStore.getStore().getSalesMaked()) {
-
-                if(!saleDTO.getStatusStr().equals("CANCELED")) {
-                    totalTickets++;
-                    for (ProductSaleDTO productSaleDTO : saleDTO.getProducts()) {
-                        String productName = skus.get(productSaleDTO.getProductKey());
-                        if (productName == null) {
-                            skus.put(productSaleDTO.getProductKey(), productSaleDTO.getProductName() + " " + productSaleDTO.getProductPresentation());
-                        }
-                        Float weight = weightTotal.get(productSaleDTO.getProductKey());
-                        if (weight == null) {
-                            Float weightByProduct = (productSaleDTO.getTypeUnid().equals("PZ") ? productSaleDTO.getQuantity() * productSaleDTO.getWeightOriginal() : productSaleDTO.getQuantity());
-                            weightTotal.put(productSaleDTO.getProductKey(), weightByProduct);
-                            weightG += weightByProduct;
-                        } else {
-                            weight += (productSaleDTO.getTypeUnid().equals("PZ") ? productSaleDTO.getQuantity() * productSaleDTO.getWeightOriginal() : productSaleDTO.getQuantity());
-                            weightTotal.put(productSaleDTO.getProductKey(), weight);
-                            weightG += (productSaleDTO.getTypeUnid().equals("PZ") ? productSaleDTO.getQuantity() * productSaleDTO.getWeightOriginal() : productSaleDTO.getQuantity());
-                            ;
-                        }
-
-                        Float amountByProduct = pricesBySku.get(productSaleDTO.getProductKey());
-                        if (amountByProduct == null) {
-                            Float amount = productSaleDTO.getPrice();
-                            pricesBySku.put(productSaleDTO.getProductKey(), amount);
-                        }
-
-                        Float amountSubSale = amountTotal.get(productSaleDTO.getProductKey());
-                        if (amountSubSale == null) {
-                            Float amount = productSaleDTO.getPrice() * productSaleDTO.getQuantity();
-                            amountTotal.put(productSaleDTO.getProductKey(), amount);
-                        }else{
-                            amountSubSale+= productSaleDTO.getPrice() * productSaleDTO.getQuantity();
-                            amountTotal.put(productSaleDTO.getProductKey(), amountSubSale);
-                        }
-
-                        if(productSaleDTO.getTypeUnid().equals("PZ")){
-                            Float piecesOfProduct = piecesTotal.get(productSaleDTO.getProductKey());
-                            if(piecesOfProduct==null){
-                                piecesTotal.put(productSaleDTO.getProductKey(),productSaleDTO.getQuantity());
-                            }else{
-                                piecesTotal.put(productSaleDTO.getProductKey(),(piecesOfProduct+productSaleDTO.getQuantity()));
-                            }
-                        }
-                    }
-
-                    clientsStr += "\n" + saleDTO.getFolio() + " " + saleDTO.getClientName() +" "+saleDTO.getKeyClient()+ "\n $" + saleDTO.getAmount() + " " + ((saleDTO.getTypeSale().equals("Crédito") || saleDTO.getTypeSale().equals("CREDITO")) ? "C" : "")+ " " + (saleDTO.getStatusStr().equals("CANCELED") ? "CANCELADO" : "");
-                    if (saleDTO.getTypeSale().equals("CREDITO") || saleDTO.getTypeSale().equals("Crédito")) {
-                        credito += saleDTO.getAmount();
-                    } else if (saleDTO.getTypeSale().equals("Transferencia")) {
-                        transferencia += saleDTO.getAmount();
-                    } else if (saleDTO.getTypeSale().equals("Efectivo")) {
-                        efectivo += saleDTO.getAmount();
-                    } else if (saleDTO.getTypeSale().equals("Cheque")) {
-                        cheque += saleDTO.getAmount();
-                    }
-                }else{
-                    totalCanceled++;
-                    clientsStr += "\n" + saleDTO.getFolio() + " " + saleDTO.getClientName() +" "+saleDTO.getKeyClient()+ "\n $" + saleDTO.getAmount() + " " + ((saleDTO.getTypeSale().equals("Crédito") || saleDTO.getTypeSale().equals("CREDITO")) ? "C" : "")+ " " + (saleDTO.getStatusStr().equals("CANCELED") ? "CANCELADO" : "");
-                }
-            }
-        }
-
-        if(viewModelStore.getStore().getDebts()!=null){
-            for(SaleOfflineMode saleOfflineDeb : viewModelStore.getStore().getDebts()) {
-                if(!saleOfflineDeb.getStatus()){
-                    creditCob+=saleOfflineDeb.getAmount();
-                }
-            }
-        }
-        }
-
-        List<String> allSkus = new ArrayList<>();
-        for(String sku : skus.keySet()){
-            allSkus.add(sku);
-        }
-
-        Collections.sort(allSkus, new Comparator<String>() {
+    void getEndDayTicketOffline(String date) {
+        executor.execute(new Runnable() {
             @Override
-            public int compare(String o1, String o2) {
-                return o1.compareTo(o2);
+            public void run() {
+                Double weightG = Double.parseDouble("0");
+                int totalTickets=0;
+                int totalCanceled=0;
+                int totalDeclinedCanceled=0;
+                int totalPendingCanceled=0;
+                int totalDevolutionsPending=0;
+                int totalDevolutionsAccepted=0;
+                int totalDevolutionsDeclined=0;
+                int totalDevolutions=0;
+
+                    Calendar calendar = Calendar.getInstance();
+                    SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd h:mm a");
+                    String dateParsed = dateFormat.format(calendar.getTime());
+                String ticket = "\nReporte de cierre\nVendedor: "+viewModelStore.getStore().getUsername()+"\nFecha: "+dateParsed+"\n------------------------\n";
+                ticket+="ART.   DESC    CANT    PRECIO  IMPORTE\n";
+                Map<String,String> skus = new HashMap<>();
+                Map<String,Float> pricesBySku = new HashMap<>();
+                Map<String,Float> weightTotal = new HashMap<>();
+                Map<String,Float> piecesTotal = new HashMap<>();
+                Map<String,Float> amountTotal = new HashMap<>();
+                Float efectivo=Float.parseFloat("0");
+                Float credito=Float.parseFloat("0");
+                Float transferencia=Float.parseFloat("0");
+                Float cheque=Float.parseFloat("0");
+                Float creditCob = Float.parseFloat("0");
+                Float iva = Float.parseFloat("0");
+                String clientsStr="";
+                String devolutionProducts="PRODUCTO DEVUELTO: \n";
+                List<Sale> salesOfday = viewModelStore.getAppDatabase().saleDao().getAllSalesByDate(date+"T00:00:00.000Z",date+"T23:59:59.000Z");
+                for(Sale sale : salesOfday){
+                    totalTickets++;
+                    if(!(sale.statusStr.equals("CANCELED") && sale.cancelAutorized!=null && sale.cancelAutorized.equals("true"))) {
+
+
+                        List<SubSale> subSales = viewModelStore.getAppDatabase().subSalesDao().getSubSalesBySale(sale.folio);
+                        DevolutionRequest devolutionRequest = viewModelStore.getAppDatabase().devolutionRequestDao().findDevolutionRequestByFolioRegister(sale.folio);
+                        Float amountOfSale=Float.parseFloat("0");
+                        if(devolutionRequest!=null && devolutionRequest.status.equals("ACCEPTED")){
+
+                            for(SubSale subSale : subSales){
+                                DevolutionSubSale devolutionSubSale = viewModelStore.getAppDatabase().devolutionSubSaleDao().findDevolutionSubSaleBySubSaleId(subSale.subSaleId);
+                                devolutionProducts+=subSale.productName+" "+subSale.productPresentationType +"\n"+ String.format("%.02f",(subSale.quantity-devolutionSubSale.quantity)) +" "+subSale.uniMed+"\n";
+                                subSale.price = (subSale.price/ subSale.quantity)*devolutionSubSale.quantity;
+                                subSale.quantity=devolutionSubSale.quantity;
+                                amountOfSale+=subSale.price;
+                            }
+                        }else{
+                            amountOfSale=sale.amount;
+                        }
+                        for (SubSale subSale : subSales) {
+                            String productName = skus.get(subSale.productKey);
+                            if (productName == null) {
+                                skus.put(subSale.productKey,subSale.productName + " " + subSale.productPresentationType);
+                            }
+                            Float weight = weightTotal.get(subSale.productKey);
+                            if (weight == null) {
+                                Float weightByProduct = (subSale.uniMed.toLowerCase().equals("pz") ? subSale.quantity * subSale.weightStandar : subSale.quantity);
+                                weightTotal.put(subSale.productKey, weightByProduct);
+                                weightG += weightByProduct;
+                            } else {
+                                weight += (subSale.uniMed.toLowerCase().equals("pz") ? subSale.quantity * subSale.weightStandar : subSale.quantity);
+                                weightTotal.put(subSale.productKey, weight);
+                                weightG += (subSale.uniMed.toLowerCase().equals("pz") ? subSale.quantity * subSale.weightStandar : subSale.quantity);
+                            }
+
+                            Float amountByProduct = pricesBySku.get(subSale.productKey);
+                            if (amountByProduct == null) {
+                                amount = subSale.price / subSale.quantity;
+                                pricesBySku.put(subSale.productKey, amount);
+                            }
+
+                            Float amountSubSale = amountTotal.get(subSale.productKey);
+                            if (amountSubSale == null) {
+                                Float amount = subSale.price;
+                                amountTotal.put(subSale.productKey, amount);
+                            }else{
+                                amountSubSale+=subSale.price;
+                                amountTotal.put(subSale.productKey, amountSubSale);
+                            }
+                            if(subSale.uniMed.toLowerCase().equals("pz")){
+                                Float piecesOfProduct = piecesTotal.get(subSale.productKey);
+                                if(piecesOfProduct==null){
+                                    piecesTotal.put(subSale.productKey,subSale.quantity);
+                                }else{
+                                    piecesTotal.put(subSale.productKey,(piecesOfProduct+subSale.quantity));
+                                }
+                            }
+                        }
+                        if((sale.statusStr.equals("CANCELED") && sale.cancelAutorized!=null && sale.cancelAutorized.equals("")) || ( sale.statusStr.equals("CANCELED") && sale.cancelAutorized==null) ){
+                            totalPendingCanceled++;
+                        }else if(sale.statusStr.equals("ACTIVE") && sale.cancelAutorized!=null && sale.cancelAutorized.equals("false")){
+                            totalDeclinedCanceled++;
+                        }
+                        clientsStr += "\n" + sale.folio + " " + sale.clientName +" "+sale.keyClient+ "\n $" + amountOfSale + " " + ((sale.typeSale.equals("CREDITO")) ? "C" : (sale.typeSale.equals("TRANSFERENCIA")?"TRANSFER":"")) + " ";
+                        if(sale.statusStr.equals("CANCELED")){
+                            if(sale.cancelAutorized!=null && sale.cancelAutorized.equals("true")){
+                                clientsStr+="CANCELADO";
+                            }else{
+                                clientsStr+="CANCEL. PEND.";
+                            }
+                        }
+                        if(devolutionRequest!=null){
+                            totalDevolutions++;
+                            clientsStr+="DEV.";
+                            String status = devolutionRequest.status;
+                            if(status.equals("PENDING")){
+                                clientsStr+="PEN.";
+                                totalDevolutionsPending++;
+                            }else if(status.equals("ACCEPTED")){
+                                clientsStr+="ACEPT.";
+                                totalDevolutionsAccepted++;
+                            }else if(status.equals("DECLINED")){
+                                clientsStr+="RECH.";
+                                totalDevolutionsDeclined++;
+                            }
+                        }
+                        if (sale.typeSale.equals("CREDITO")) {
+                            credito += amountOfSale;
+                        } else if (sale.typeSale.equals("TRANSFERENCIA")) {
+                            transferencia += amountOfSale;
+                        } else if (sale.typeSale.equals("EFECTIVO")) {
+                            efectivo += amountOfSale;
+                        } else if (sale.typeSale.equals("CHEQUE")) {
+                            cheque += amountOfSale;
+                        }
+
+                    }else{
+
+                            totalCanceled++;
+                            clientsStr += "\n" + sale.folio + " " + sale.clientName +" "+sale.keyClient+ "\n $" + sale.amount + " " + ((sale.typeSale.equals("CREDITO")) ? "C" : (sale.typeSale.equals("TRANSFERENCIA")?"TRANSFER":"")) + " " + (sale.statusStr.equals("CANCELED") ? "CANCELADO" : "");
+                    }
+
+                }
+
+                List<Debt> debts = viewModelStore.getAppDatabase().debtDao().getAllSalesDebtsBetweenDates(date+"T00:00:00.000Z",date+"T23:59:59.000Z");
+                for(Debt debt : debts){
+                    if(!debt.deleted) {
+                        Sale sale = viewModelStore.getAppDatabase().saleDao().getByFolio(debt.folio);
+                        creditCob += sale.amount;
+                    }
+                }
+                List<String> allSkus = new ArrayList<>();
+                for(String sku : skus.keySet()){
+                    allSkus.add(sku);
+                }
+                Collections.sort(allSkus, new Comparator<String>() {
+                    @Override
+                    public int compare(String o1, String o2) {
+                        return o1.compareTo(o2);
+                    }
+                });
+                for(String sku : allSkus){
+                    String productName = skus.get(sku);
+                    Float weight = weightTotal.get(sku);
+                    Float price = pricesBySku.get(sku);
+                    Float amount = amountTotal.get(sku);
+                    Float totalPieces = piecesTotal.get(sku);
+                    if(sku.length()>5){
+                        sku=sku.substring(sku.length()-5,sku.length());
+                    }
+                    if(totalPieces==null) {
+                        ticket += "\n" + sku + " " + productName + "\n" + String.format("%.02f", weight) + " $" + price + " $" + String.format("%.02f", amount);
+                    }else{
+                        ticket += "\n" + sku + " " + productName + "\n"+Math.round(totalPieces)+ " pz " + String.format("%.02f", weight) + " $" + price + " $" + String.format("%.02f", amount);
+                    }
+                }
+                ticket+="\n-----------------------------------------\nDOC NOMBRE  CLIENTE IMPORTE TIPOVENTA\n-----------------------------------------\n";
+                ticket+=clientsStr+"\n\n";
+                ticket+="Total de notas: "+totalTickets+"\n";
+                ticket+="Total de canceladas: "+totalCanceled+"\n";
+                ticket+="Total de devoluciones: "+totalDevolutionsAccepted+"\n";
+                ticket+=devolutionProducts+"\n\n";
+                ticket+="VENTAS POR CONCEPTO\nEFECTIVO: $"+String.format("%.02f",efectivo)+"\nCREDITO: $"+String.format("%.02f",credito)+"\nTRANSFERENCIA: $"+String.format("%.02f",transferencia)+"\nCHEQUE: $"+String.format("%.02f",cheque)+"\n";
+                ticket+="TOTAL KILOS: "+String.format("%.02f",weightG)+"\nVENTA TOTAL:$ "+String.format("%.02f",efectivo+transferencia+cheque+credito)+"\n";
+                ticket+="Recup. Cobranza\n$ "+String.format("%.02f",creditCob)+"\n";
+                ticket+="\n\n\n\n";
+                String ticketCreated = ticket;
+                ///adeudos pendientes
+                System.out.println("Ticket: "+ticket);
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        isLoading = false;
+                        circularProgressIndicator.setVisibility(View.INVISIBLE);
+                        printTiket(ticketCreated);
+                    }
+                });
             }
         });
-        for(String sku : allSkus){
-            String productName = skus.get(sku);
-            Float weight = weightTotal.get(sku);
-            Float price = pricesBySku.get(sku);
-            Float amount = amountTotal.get(sku);
-            Float totalPieces = piecesTotal.get(sku);
-            if(sku.length()>5){
-                sku=sku.substring(sku.length()-5,sku.length());
-            }
-            if(totalPieces==null) {
-                ticket += "\n" + sku + " " + productName + "\n" + String.format("%.02f", weight) + " $" + price + " $" + String.format("%.02f", amount);
-            }else{
-                ticket += "\n" + sku + " " + productName + "\n"+Math.round(totalPieces)+ " pz " + String.format("%.02f", weight) + " $" + price + " $" + String.format("%.02f", amount);
-            }
-        }
-        ticket+="\n-----------------------------------------\nDOC NOMBRE  CLIENTE IMPORTE TIPOVENTA\n-----------------------------------------\n";
-        ticket+=clientsStr+"\n\n";
-        ticket+="VENTAS POR CONCEPTO\nEFECTIVO: $"+String.format("%.02f",efectivo)+"\nCREDITO: $"+String.format("%.02f",credito)+"\nTRANSFERENCIA: $"+String.format("%.02f",transferencia)+"\nCHEQUE: $"+String.format("%.02f",cheque)+"\n";
-        ticket+="TOTAL KILOS: "+String.format("%.02f",weightG)+"\nVENTA TOTAL:$ "+String.format("%.02f",efectivo+transferencia+cheque+credito)+"\n";
-        ticket+="Recup. Cobranza\n$ "+String.format("%.02f",creditCob)+"\n";
-        ticket+="Total de notas: "+totalTickets+"\n";
-        ticket+="Total de canceladas: "+totalCanceled+"\n\n\n\n";
-        isLoading = false;
-        this.circularProgressIndicator.setVisibility(View.INVISIBLE);
-        printTiket(ticket);
+
+
+
+
     }
 
 
@@ -1399,11 +1586,11 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
                 public void onClick(DialogInterface dialog, int which) {
                     if(!textInputLayout.getEditText().getText().toString().isEmpty()) {
                         System.out.println("acepto el cobró");
-                        SaleDTO saleDTO = null;
-                        saleDTO = generateRequestSale(textInputLayout.getEditText().getText().toString(), 0);
+                        //SaleDTO saleDTO = null;
+                        //saleDTO = generateRequestSale(textInputLayout.getEditText().getText().toString(), 0);
                         cobrarButton.setEnabled(false);
                         circularProgressIndicator.setVisibility(View.VISIBLE);
-                        if(!offlineActive) {
+                        /*if(!offlineActive) {
                             presenter.doSale(saleDTO);
                         }else{
                             List<SaleDTO> salesMaked= viewModelStore.getStore().getSalesMaked();
@@ -1459,12 +1646,13 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
                             saleDTO.setClientId(currentClient.getId());
                             viewModelStore.getStore().setFolioCount(folioCount);
                             salesMaked.add(saleDTO);
-                            viewModelStore.getStore().setSalesMaked(salesMaked);
-                            System.out.println("Tamaño de ventas: "+viewModelStore.getStore().getSalesMaked().size()+"-"+salesMaked.size());
-                            doTicketSaleOffline(saleDTO);
-                            setModeOffline(viewModelStore.getStore());
+                            */
+                        saveSqlSale(amount);
+                        //viewModelStore.getStore().setSalesMaked(salesMaked);
+                        //doTicketSaleOffline(saleDTO);
+                        //setModeOffline(viewModelStore.getStore());
+                        //}
 
-                        }
                     }else{
                         genericMessage("Venta no realizada","No se asignó un monto de pago ó se canceló el cobro");
                     }
@@ -1479,8 +1667,83 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
             builder.show();
     }
 
+    void saveSqlSale(Float amount){
 
-    @RequiresApi(api = Build.VERSION_CODES.N)
+        executor.execute(new  Runnable() {
+            @RequiresApi(api = Build.VERSION_CODES.O)
+            @Override
+            public void run() {
+
+                UserDataInitial userDataInitial = viewModelStore.getAppDatabase().userDataInitialDao().getDetailsInitialByUid(viewModelStore.getStore().getSellerId());
+                Map<String,Product> productsMap = new HashMap<>();
+                    Integer folioCount = userDataInitial.count;
+                    Sale sale = new Sale();
+                    sale.amount=amount;
+                    sale.clientName=clientSelected.name;
+                    if(clientSelected.type.equals("CONTADO")) {
+                        sale.typeSale=contadoOptions[selectionPay];
+                        sale.status=false;
+                    }else if(clientSelected.type.equals("CREDITO")){
+                        if(creditoOptions[selectionPay].equals("CREDITO")) {
+                            sale.typeSale = creditoOptions[selectionPay];
+                            sale.credit = amount;
+                            sale.status = true;
+                        }else{
+                            sale.typeSale = creditoOptions[selectionPay];
+                            sale.status = false;
+                        }
+                    }
+                    ZonedDateTime zdt = ZonedDateTime.now();
+                    zdt=zdt.minusHours(5);
+                    String nowAsISO= zdt.format(DateTimeFormatter.ISO_INSTANT);
+                    sale.date=nowAsISO;
+                    sale.keyClient=clientSelected.clientKey;
+                    sale.payed=amount;
+                    sale.sellerId=viewModelStore.getStore().getSellerId();
+                    sale.sincronized=false;
+                    sale.statusStr="ACTIVE";
+                    sale.clientId=clientSelected.clientId;
+                    sale.modified=false;
+                    sale.folio=userDataInitial.nomenclature+(folioCount+1);
+                    List<SubSale> subSales = new ArrayList<>();
+                    for(ProductRoviandaToSale product : carSale){
+                        Product product1=viewModelStore.getAppDatabase().productDao().getProductByKey(product.getKeySae());
+                        productsMap.put(product.getKeySae(),product1);
+                        SubSale subSale = new SubSale();
+                        subSale.folio=userDataInitial.nomenclature+(folioCount+1);
+                        subSale.price=product.getPrice()*product.getQuantity();
+                        subSale.productKey=product.getKeySae();
+                        subSale.productName=product.getNameProduct();
+                        subSale.productPresentationType=product.getPresentationType();
+                        subSale.quantity=product.getQuantity();
+                        subSale.weightStandar=product.getWeightOriginal();
+                        subSale.presentationId=product.getPresentationId();
+                        subSale.productId=product.getProductId();
+                        subSale.uniMed=product.isIsPz()?"PZ":"KG";
+                        subSales.add(subSale);
+                    }
+                    viewModelStore.getAppDatabase().saleDao().insertAll(sale);
+                    viewModelStore.getAppDatabase().userDataInitialDao().updateFolioCount(folioCount+1, viewModelStore.getStore().getSellerId());
+                    for (SubSale subSale1 : subSales) {
+                        viewModelStore.getAppDatabase().subSalesDao().insertAllSubSales(subSale1);
+                    }
+
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        doTicketSaleOffline(sale,subSales,productsMap);
+                        System.out.println("SaleSavedInSQL");
+                        checkSalesUnSincronized();
+                    }
+                });
+            }
+        });
+    }
+
+
+
+
+    /*@RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     public void setModeOffline(ModeOfflineModel modeOffline) {
         isLoading=false;
@@ -1508,39 +1771,71 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
             e.printStackTrace();
         }
         Toast.makeText(getContext(),"Se almaceno offline",Toast.LENGTH_SHORT).show();
-        if(loadModal!=null && loadModal.isShowing()){
-            dismissLoadModal();
-        }
-    }
-    void doTicketSaleOffline(SaleDTO saleDTO){
+
+    }*/
+    void doTicketSaleOffline(Sale sale,List<SubSale> subSales,Map<String,Product> productsMap){
         Calendar calendar = Calendar.getInstance();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd h:mm a");
         String dateParsed = dateFormat.format(calendar.getTime());
         String ticket = "ROVIANDA SAPI DE CV\nAV.1 #5 Esquina Calle 1\nCongregación Donato Guerra\nParque Industrial Valle de Orizaba\nC.P 94780\nRFC 8607056P8\nTEL 272 72 46077, 72 4 5690\n";
-        ticket+="Pago en una Sola Exhibición\nLugar de Expedición: Ruta\nNota No. "+saleDTO.getFolio()+"\nFecha: "+dateParsed+"\n\n";
-        ticket+="Vendedor:"+viewModelStore.getStore().getUsername()+"\n\nCliente: "+currentClient.getName()+"\nClave: "+currentClient.getKeyClient()+"\n";
-        ticket+="Tipo de venta: "+ saleDTO.getTypeSale() +"\n--------------------------------\nDESCR   CANT    PRECIO  IMPORTE\n--------------------------------\n";
+        ticket+="Pago en una Sola Exhibición\nLugar de Expedición: Ruta\nNota No. "+sale.folio+"\nFecha: "+dateParsed+"\n\n";
+        ticket+="Vendedor:"+viewModelStore.getStore().getUsername()+"\n\nCliente: "+clientSelected.name+"\nClave: "+clientSelected.clientKey+"\n";
+        ticket+="Tipo de venta: "+ sale.typeSale +"\n--------------------------------\nDESCR   PRECIO   CANT  IMPU.   IMPORTE \n--------------------------------\n";
         Float total = Float.parseFloat("0");
-        for(ProductSaleDTO product : saleDTO.getProducts()){
-            if(product.getTypeUnid().equals("PZ")) {
-                ticket += product.getProductName() + " " + product.getProductPresentation() + "\n" + product.getPrice() +" "+ Math.round(product.getQuantity()) + "pz "  +" "+String.format("%.02f",product.getPrice()*product.getQuantity()) +"\n";
-            }else{
-                ticket += product.getProductName() + " " + product.getProductPresentation() + "\n"+ Math.round(product.getPrice()) +" " + product.getQuantity() + "kg "+ " "+String.format("%.02f",product.getPrice()*product.getQuantity())+ "\n";
-            }
+        Float totalImp = Float.parseFloat("0");
+        for(SubSale product : subSales){
+            Product product1 = productsMap.get(product.productKey);
+            Float singleIva = Float.parseFloat("0");
+            Float singleIeps = Float.parseFloat("0");
+            Float amount = (product.price/product.quantity);
 
-            total+=product.getPrice()*product.getQuantity();
+            switch (product1.esqKey){
+                case 1:
+                    singleIva=this.extractIva(amount);
+                    break;
+                case 4:
+                    singleIva=this.extractIva(amount);
+                    singleIeps=this.extractIeps((amount-this.extractIva(amount)),Float.parseFloat("8"));
+                    break;
+                case 5:
+                    singleIva=this.extractIva(amount);
+                    singleIeps=this.extractIeps((amount-this.extractIva(amount)),Float.parseFloat("25"));
+                    break;
+                case 6:
+                    singleIva=this.extractIva(amount);
+                    singleIeps=this.extractIeps((amount-this.extractIva(amount)),Float.parseFloat("50"));
+                    break;
+            }
+            Float singlePrice=amount-(singleIva+singleIeps);
+            totalImp+=((singleIva+singleIeps)*product.quantity);
+            if(product.uniMed.equals("PZ")) {
+                ticket += product.productName + " " + product.productPresentationType + "\n" + String.format("%.02f",singlePrice) +" "+ Math.round(product.quantity) + "pz " +String.format("%.02f",(singleIeps+singleIva)*product.quantity)  +" "+String.format("%.02f",product.price) +"\n";
+            }else{
+                ticket += product.productName + " " + product.productPresentationType + "\n"+ Math.round(singlePrice) +" " + product.quantity + "kg "+ String.format("%.02f",(singleIeps+singleIva)*product.quantity) +" "+String.format("%.02f",product.price)+ "\n";
+            }
+            total+=product.price;
         }
-        ticket+="--------------------------------\nTOTAL: $ "+String.format("%.02f",total)+"\n\n\n";
+        ticket+="--------------------------------\n";
+        ticket+="SUB TOTAL: $"+String.format("%.02f",total-totalImp)+"\n";
+        ticket+="IMPUESTO:  $"+String.format("%.02f",totalImp)+"\n";
+        ticket+="TOTAL: $ "+String.format("%.02f",total)+"\n\n\n";
         //ticket+="ticket+=`Piezas:  \n\n*** GRACIAS POR SU COMPRA ***\n";
-        if(saleDTO.getTypeSale().equals("Crédito") || saleDTO.getTypeSale().equals("CREDITO")){
+        if(sale.typeSale.equals("CREDITO")){
            ticket+="Esta venta se incluye en la\nventa global del dia, por el\npresente reconozco deber\ny me obligo a pagar en esta\nciudad y cualquier otra que\nse me de pago a la orden de\nROVIANDA S.A.P.I. de C.V. la\ncantidad que se estipula como\ntotal en el presente documento.\n-------------------\n      Firma\n\n";
-            ticket+=(saleDTO.getStatus())?"\nSE ADEUDA\n\n\n\n\n":"\nPAGADO\n\n\n\n\n";
+            ticket+=(sale.status)?"\nSE ADEUDA\n\n\n\n\n":"\nPAGADO\n\n\n\n\n";
         }
+
         saleSuccess(ticket);
     }
 
+    Float extractIva(Float amount){
+        return (amount/116)*16;
+    }
 
-    SaleDTO generateRequestSale(String amountPayed,int days){
+    Float extractIeps(Float amount,Float percent){
+        return (amount/(100+percent))*percent;
+    }
+    /*SaleDTO generateRequestSale(String amountPayed,int days){
         SaleDTO sale = new SaleDTO();
         sale.setAmount(amount);
         sale.setPayed(Float.parseFloat(amountPayed));
@@ -1571,7 +1866,7 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
         sale.setProducts(productsSold);
 
         return sale;
-    }
+    }*/
 
     public BigDecimal round(float d, int decimalPlace) {
         BigDecimal bd = new BigDecimal(Float.toString(d));
@@ -1585,7 +1880,9 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
         intentsToClose=0;
         circularProgressIndicator.setVisibility(View.GONE);
         isLoading=false;
-        presenter.findUser(0);
+        clientSelected=null;
+        clientName.setText("");
+        clientSaeKey.setText("");
         cobrarButton.setEnabled(true);
         this.carSale= new ArrayList<>();
         this.fillList();
@@ -1663,113 +1960,4 @@ public class HomeView extends Fragment implements View.OnClickListener,HomeViewC
     }
 
 
-
-    @Override
-    public void setCounterTimer(CounterTime counterTimer) {
-        if(counterTimer.getHours()==0 && counterTimer.getMinutes()==0 && counterTimer.getSeconds()==0) {
-            System.out.println("No iniciado");
-            System.out.println("hour: " + counterTimer.getHours() + " minutes: " + counterTimer.getMinutes() + " seconds: " + counterTimer.getSeconds());
-            this.confirmEatTime();
-        }else{
-            System.out.println("Ya iniciado");
-            System.out.println("hour: " + counterTimer.getHours() + " minutes: " + counterTimer.getMinutes() + " seconds: " + counterTimer.getSeconds());
-            showModal(counterTimer.getHours(),counterTimer.getMinutes(),counterTimer.getSeconds());
-        }
-    }
-
-    TextView counter=null;
-    long miliseconds=0;
-    AlertDialog dialogTimer;
-   void showModal(int hours,int minutes,int seconds){
-       this.circularProgressIndicator.setVisibility(View.GONE);
-       isLoading=false;
-       TimeUnit.HOURS.toMillis(hours);
-        miliseconds = (TimeUnit.HOURS.toMillis(hours)+TimeUnit.MINUTES.toMillis(minutes)+TimeUnit.SECONDS.toMillis(seconds));
-        LayoutInflater layoutInflater = LayoutInflater.from(getContext());
-        View view= layoutInflater.inflate(R.layout.counter_timer, null);
-        counter=view.findViewById(R.id.timer_counter);
-        counter.setText("00:00:00");
-        stopEatTimeButton=view.findViewById(R.id.terminar_timer);
-        stopEatTimeButton.setOnClickListener(this);
-
-       dialogTimer= new MaterialAlertDialogBuilder(getContext()).setTitle("Contador tiempo de comida.")
-                .setView(view).setPositiveButton("Aceptar", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        timerActive=false;
-                        dialog.dismiss();
-                    }
-                }).setCancelable(false).create();
-       dialogTimer.show();
-       runnable();
-       this.timerActive=true;
-    }
-
-
-
-    void resetTime(){
-        int minutes = (int) (miliseconds / 1000) / 60 % 60;
-        int seconds = (int) (miliseconds / 1000) % 60;
-
-        int hours = (int) (miliseconds/1000) / 60 / 60;
-        String timeLeftFormatted = String.format(Locale.getDefault(), "%02d:%02d:%02d", hours,minutes, seconds);
-        counter.setText(timeLeftFormatted);
-    }
-
-   boolean timerActive=false;
-    void runnable(){
-        new Thread(
-               new Runnable() {
-                   @Override
-                   public void run() {
-                       try {
-                           while(timerActive==true) {
-                               sleep(1000);
-                               if(miliseconds==0) {
-                                   miliseconds=1000;
-                               }else{
-                                   miliseconds+=1000;
-                               }
-                               resetTime();
-                           }
-                       } catch (InterruptedException e) {
-                           e.printStackTrace();
-                       }
-                   }
-               }
-       ).start();;
-    }
-
-    public void showLoadModal() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-        // Get the layout inflater
-        LayoutInflater inflater = (getActivity()).getLayoutInflater();
-        // Inflate and set the layout for the dialog
-        // Pass null as the parent view because its going in the
-        // dialog layout
-        View viewModal =inflater.inflate(R.layout.dialog_load_message,null);
-        TextView textLoadMessage = viewModal.findViewById(R.id.message_load);
-        textLoadMessage.setText("Se detecto Internet, Sincronizando con servidor...");
-        builder.setCancelable(false);
-        builder.setView(viewModal);
-        loadModal =  builder.create();
-        loadModal.show();
-
-    }
-    @Override
-    public void dismissLoadModal(){
-        isLoading = false;
-        circularProgressIndicator.setVisibility(View.GONE);
-        if(loadModal!=null && loadModal.isShowing()) {
-            loadModal.dismiss();
-        }
-
-    }
-    @Override
-    public boolean isNetworkAvailable() {
-        ConnectivityManager connectivityManager
-                = (ConnectivityManager) getActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
-        return activeNetworkInfo != null && activeNetworkInfo.isConnected();
-    }
 }
