@@ -140,7 +140,7 @@ public class HomePresenter implements HomePresenterContract{
         requestQueue.add(presentationsgGet).setRetryPolicy(new RetryPolicy() {
             @Override
             public int getCurrentTimeout() {
-                return 50000;
+                return 180000;
             }
 
             @Override
