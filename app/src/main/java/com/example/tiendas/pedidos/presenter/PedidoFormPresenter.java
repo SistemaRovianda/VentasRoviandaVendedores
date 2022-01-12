@@ -117,7 +117,7 @@ public class PedidoFormPresenter implements PedidoFormPresenterContract{
         saleRequets.setRetryPolicy(new RetryPolicy() {
             @Override
             public int getCurrentTimeout() {
-                return 10000;
+                return 180000;
             }
 
             @Override
