@@ -12,6 +12,7 @@ import com.android.volley.VolleyError;
 import com.android.volley.toolbox.BasicNetwork;
 import com.android.volley.toolbox.DiskBasedCache;
 import com.android.volley.toolbox.HurlStack;
+import com.example.ventasrovianda.Utils.Constants;
 import com.example.ventasrovianda.Utils.GsonRequest;
 import com.example.ventasrovianda.Utils.Models.ClientDTO;
 import com.example.ventasrovianda.Utils.Models.ProductPresentation;
@@ -35,13 +36,12 @@ public class ClientPresenter implements ClientPresenterContract {
     private Network network;
     private Gson parser;
     private GsonRequest serviceConsumer;
-    private String url ="https://us-central1-sistema-rovianda.cloudfunctions.net/app";//"https://us-central1-sistema-rovianda.cloudfunctions.net/app";
+    private String url = Constants.URL;
     private RequestQueue requestQueue;
     public ClientPresenter(Context context, ClientView view){
         this.context = context;
         this.view = view;
         this.firebaseAuth = FirebaseAuth.getInstance();
-
         cache = new DiskBasedCache(context.getCacheDir(),1024*1024);
         network = new BasicNetwork(new HurlStack());
         requestQueue = new RequestQueue(cache,network);

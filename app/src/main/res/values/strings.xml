@@ -1,3 +1,74 @@
 <resources>
     <string name="app_name">Ventas Rovianda</string>
+
+    <!--Registro de clientes nuevo cliente button-->
+    <string name="registerNewClientButton">Nuevo Cliente</string>
+
+
+
+    <!--Registro de clientes nueva version-->
+    <string name="registerNewClientTitle">Registro de Cliente</string>
+
+    <string name="registerNewNameField">Nombre</string>
+    <string name="registerNewStreetField">Calle</string>
+    <string name="registerNewMunicipalityField">Municipio</string>
+    <string name="registerNewSuburbField">Colonia</string>
+    <string name="registerNewNoExtField">Número exterior (Opcional)</string>
+    <string name="registerNewCPField">Código postal</string>
+    <string name="registerNewDaysToVisitTitle">Dias de visita</string>
+
+    <string name="registerNewDayMonday">Lunes</string>
+    <string name="registerNewDayTuesday">Martes</string>
+    <string name="registerNewDayWednesday">Miercoles</string>
+    <string name="registerNewDayThursday">Jueves</string>
+    <string name="registerNewDayFriday">Viernes</string>
+    <string name="registerNewDaySaturday">Sabado</string>
+
+    <string name="latitudTextStr">Latitud: Sin asignar</string>
+    <string name="longitudTextStr">Longitud: Sin asignar</string>
+    <string name="registerNewButtonNext">Registrar</string>
+    <string name="registerNewClientCancelButton">Cancelar</string>
+
+    <!--Registro de clientes v2 detalles de geolocalizacion-->
+    <string name="registerNewClientInfoGeoTitle">Información de geolocalización</string>
+
+    <string name="registerNewLatitude">Latitud:</string>
+    <string name="registerNewLongitude">Longitud:</string>
+
+    <string name="registerNewButtonCapture">Capturar</string>
+
+    <!--Modal coordenates info-->
+    <string name="modalButtonClientv2AcceptText">Aceptar</string>
+
+    <!--Modal coordenates msg-->
+    <string name="modalClientv2Msg">Cargando datos de dirección</string>
+    <!--Modal coordenates tile-->
+    <string name="modalClientv2Title">Localizando</string>
+
+    <!--Fragment map-->
+    <string name="fragmentMapButtonActionsText">Acciones</string>
+    <string name="fragmentMapButtonGoBackText">Regresar</string>
+
+    <!--Fragment visits-->
+    <string name="fragmentVisitToMapText">Ver ruta en mapa</string>
+
+
+    <!--Fragment map register client-->
+    <string name="fragmentMapRegisterLocationInfoText">Información de geolocalización</string>
+    <string name="mapButtonRegisterClient">Mapa</string>
+    <string name="fragmentMapRegisterLocationButtonText">Capturar</string>
+
+    <!-- Modal register visit client -->
+    <string name="modalRegisterVisitModalTitle">Acciones</string>
+    <string name="modalRegisterVisitButton1Title">Registrar visita sin venta</string>
+    <string name="modalRegisterVisitButton2Title">No se visitó (Observaciones)</string>
+
+    <!-- MODAL CONFIRM ADDRESS -->
+    <string name="confirmAddressMessge">La ubicación del cliente se guardará como</string>
+    <string name="confirmAddressHint">Direccion del cliente</string>
+    <string name="confirmAddressButton">Confirmar</string>
+    <string name="confirmAddressMapButton">Ir a Mapa</string>
+
+    <string name="modalMapaCancelButton">Cancelar</string>
+    <string name="modalMapaConfirmButton">Confirmar</string>
 </resources>

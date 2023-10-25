@@ -1,14 +1,17 @@
 package com.example.ventasrovianda.sales.view;
 
+import android.Manifest;
 import android.app.DatePickerDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.net.ConnectivityManager;
+import android.net.Network;
 import android.net.NetworkInfo;
 import android.os.Build;
 import android.os.Bundle;
@@ -32,6 +35,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AlertDialog;
+import androidx.core.app.ActivityCompat;
 import androidx.core.widget.ImageViewCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
@@ -42,7 +46,12 @@ import com.example.ventasrovianda.R;
 import com.example.ventasrovianda.Utils.DatePickerFragment;
 import com.example.ventasrovianda.Utils.Models.BluetoothDeviceSerializable;
 import com.example.ventasrovianda.Utils.Models.ClientDTO;
+import com.example.ventasrovianda.Utils.Models.DebPayedRequest;
+import com.example.ventasrovianda.Utils.Models.DevolutionRequestServer;
+import com.example.ventasrovianda.Utils.Models.DevolutionSubSaleRequestServer;
 import com.example.ventasrovianda.Utils.Models.ModeOfflineModel;
+import com.example.ventasrovianda.Utils.Models.ModeOfflineSM;
+import com.example.ventasrovianda.Utils.Models.ModeOfflineSMP;
 import com.example.ventasrovianda.Utils.Models.PayDebtsModel;
 import com.example.ventasrovianda.Utils.Models.ProductSaleDTO;
 import com.example.ventasrovianda.Utils.Models.ProductsOfflineMode;
@@ -52,6 +61,7 @@ import com.example.ventasrovianda.Utils.Models.SaleResponseDTO;
 import com.example.ventasrovianda.Utils.Models.TotalSoldedDTO;
 import com.example.ventasrovianda.Utils.PrinterUtil;
 import com.example.ventasrovianda.Utils.ViewModelStore;
+import com.example.ventasrovianda.Utils.bd.AppDatabase;
 import com.example.ventasrovianda.Utils.bd.entities.Debt;
 import com.example.ventasrovianda.Utils.bd.entities.DevolutionRequest;
 import com.example.ventasrovianda.Utils.bd.entities.DevolutionSubSale;
@@ -75,7 +85,10 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.sql.Date;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -83,6 +96,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -90,7 +104,8 @@ import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 public class SalesView  extends Fragment implements  View.OnClickListener,SaleViewContract{
-    TextView logoutButton,endDayButton,eatTimeButton,fromDate;
+    TextView fromDate,totalWeight,totalCash;
+    Button logoutButton,endDayButton;
     BottomNavigationView homeButton;
     NavController navController;
     ClientDTO clientDTO = null;
@@ -120,6 +135,7 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
     ViewModelStore viewModelStore;
     Boolean modeOffline;
     Gson parser;
+    @RequiresApi(api = Build.VERSION_CODES.N)
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -128,7 +144,6 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
         this.printerButton = view.findViewById(R.id.printerButton);
         this.printerButton.setOnClickListener(this);
         this.endDayButton = view.findViewById(R.id.end_day_button);
-        this.eatTimeButton = view.findViewById(R.id.eat_time_button);
         this.logoutButton = view.findViewById(R.id.Logout_button);
         this.logoutButton.setOnClickListener(this);
         this.bluetoothDeviceSerializable = SalesViewArgs.fromBundle(getArguments()).getPrinterDevice();
@@ -138,33 +153,30 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
         this.buttonCobranzaHistory = view.findViewById(R.id.buttonCobranzaHistory);
         this.buttonCobranzaHistory.setOnClickListener(this);
         this.userNameTextView.setTextColor(Color.parseColor("#236EF2"));
-
+        this.totalWeight = view.findViewById(R.id.totalWeight);
+        this.totalWeight.setText("PESO");
+        this.totalWeight.setVisibility(View.VISIBLE);
+        this.totalCash = view.findViewById(R.id.totalCash);
+        this.totalCash.setText("TOTAL VENDIDO");
+        this.totalCash.setVisibility(View.VISIBLE);
         this.fromDate = view.findViewById(R.id.fromDate);
-
+        this.endDayButton.setVisibility(View.GONE);
+        this.logoutButton.setVisibility(View.GONE);
         this.changeDateButton=view.findViewById(R.id.changeDateButton);
         this.changeDateButton.setOnClickListener(this);
         this.devolutionButton=view.findViewById(R.id.devolutionsButton);
         this.devolutionButton.setOnClickListener(this);
-        this.endDayButton.setText("PESO");
-        this.eatTimeButton.setText("VENDIDO");
-        this.endDayButton.setVisibility(View.VISIBLE);
-        this.eatTimeButton.setVisibility(View.VISIBLE);
         this.clientDTO = SalesViewArgs.fromBundle(getArguments()).getClientInVisit();
         this.navController = NavHostFragment.findNavController(this);
         homeButton = view.findViewById(R.id.bottom_navigation_home);
         homeButton.setSelectedItemId(R.id.ventas_section);
         listSales = view.findViewById(R.id.listSales);
         this.salesPresenter = new SalesPresenter(getContext(),this);
-
         this.bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-
         this.buscarCliente = view.findViewById(R.id.buscarClienteButton);
         this.buscarCliente.setOnClickListener(this);
         this.inputSearch = view.findViewById(R.id.cliente_input_search);
         this.parser = new Gson();
-
-
-
         this.inputSearch.getEditText().addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -198,17 +210,21 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
             public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                 switch (item.getItemId()){
                     case R.id.home_section:
+                        unregisteredNetworkCallback();
                         goToHome();
                         break;
                     case R.id.visitas_section:
+                        unregisteredNetworkCallback();
                         goToVisits();
 
                         break;
                     case R.id.cliente_section:
+                        unregisteredNetworkCallback();
                         goToClients();
 
                         break;
                     case R.id.pedidos_section:
+                        unregisteredNetworkCallback();
                         goToOrder();
                         break;
                     case R.id.ventas_section:
@@ -218,6 +234,7 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
                 return false;
             }
         });
+        checkConnection();
         return view;
     }
     Boolean filtered=false;
@@ -246,7 +263,7 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
             if(filtrable==true && filtered==true){
                 System.out.println("Filtrado por:"+this.currentHint);
                 for(int i=0;i<sales.length;i++){
-                    if(sales[i].getClient().getName().toLowerCase().contains(this.currentHint.toLowerCase()) || String.valueOf(sales[i].getClient().getKeyClient()).toLowerCase().contains(this.currentHint.toLowerCase())){
+                    if(sales[i].getClient().getName().toLowerCase().contains(this.currentHint.toLowerCase()) || String.valueOf(sales[i].getClient().getKeyClient()).toLowerCase().contains(this.currentHint.toLowerCase()) || String.valueOf(sales[i].getFolio()).toLowerCase().contains(this.currentHint.toLowerCase())){
                         System.out.println("Se encontro");
                         salesNew.add(sales[i]);
                     }
@@ -277,19 +294,10 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         viewModelStore = new ViewModelProvider(requireActivity()).get(ViewModelStore.class);
-        /*if(checkOffline()){
-            modeOffline=true;
-
-        }else{
-            modeOffline=false;
-            this.salesPresenter.checkAccumulated();
-            this.salesPresenter.getAllSaleOfDay();
-        }*/
         LocalDateTime ldt = LocalDateTime.now();
         DateTimeFormatter formmat1 = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         System.out.println("FECHA_DE_HOY: "+ldt);
         String dateParsed = formmat1.format(ldt);
-
         dateSelected=dateParsed;
         fromDate.setText("Ventas: "+dateParsed);
         fillSalesOffline(dateSelected);
@@ -323,10 +331,8 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
         executor.execute(new Runnable() {
             @Override
             public void run() {
-
-                UserDataInitial userDataInitial = viewModelStore.getAppDatabase().userDataInitialDao().getDetailsInitialByUid(viewModelStore.getStore().getSellerId());
-
-
+                AppDatabase conexion=AppDatabase.getInstance(getContext());
+                UserDataInitial userDataInitial = conexion.userDataInitialDao().getDetailsInitialByUid(viewModelStore.getStore().getSellerId());
                 handler.post(new Runnable() {
                     @RequiresApi(api = Build.VERSION_CODES.N)
                     @Override
@@ -350,22 +356,10 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
             }
         });
     }
-/*
-    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
-    Boolean checkOffline(){
-        Calendar calendar = Calendar.getInstance();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-        String dateParsed = dateFormat.format(calendar.getTime());
-        File root = new File(getContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "offline");
-        File gpxfile = new File(root, "offline-"+dateParsed+".rovi");
-        return gpxfile.exists();
-    }*/
-
 
     @RequiresApi(api = Build.VERSION_CODES.O)
     void fillSalesOffline(String date){
             fillOfSql(date);
-        //isLoading=false;
     }
 
     ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -378,12 +372,10 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
         executor.execute(new  Runnable() {
             @Override
             public void run() {
-
-                //Background work here
+                AppDatabase conexion = AppDatabase.getInstance(getContext());
                 List<SaleResponseDTO> saleResponseDTOS=new ArrayList<>();
                 List<SubSale> subSales = new ArrayList<>();
-                List<Sale> sales = viewModelStore.getAppDatabase().saleDao().getAllSalesByDate(dateParsed1,dateParsed2);
-
+                List<Sale> sales = conexion.saleDao().getAllSalesByDate(dateParsed1,dateParsed2);
                 for(Sale sale : sales) {
                     SaleResponseDTO saleResponseDTO = new SaleResponseDTO();
                     saleResponseDTO.setAmount(Float.parseFloat(sale.amount.toString()));
@@ -400,8 +392,7 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
                     saleResponseDTO.setSaleId(Long.parseLong(String.valueOf(sale.saleId)));
                     saleResponseDTO.setCancelAutorized(sale.cancelAutorized);
                     saleResponseDTOS.add(saleResponseDTO);
-
-                    DevolutionRequest devolutionRequest = viewModelStore.getAppDatabase().devolutionRequestDao().findDevolutionRequestByFolioRegister(sale.folio);
+                    DevolutionRequest devolutionRequest = conexion.devolutionRequestDao().findDevolutionRequestByFolioRegister(sale.folio);
                         if(devolutionRequest!=null){
                             saleResponseDTO.setDevolutionStatus(devolutionRequest.status);
                             saleResponseDTO.setDevolutionid(devolutionRequest.devolutionRequestId);
@@ -411,10 +402,10 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
                     if(!(sale.statusStr.equals("CANCELED") && sale.cancelAutorized!=null && sale.cancelAutorized.equals("true"))) {
 
                         List<SubSale> subSales1;
-                        subSales1 = viewModelStore.getAppDatabase().subSalesDao().getSubSalesBySale(sale.folio);
+                        subSales1 = conexion.subSalesDao().getSubSalesBySale(sale.folio);
                         if (devolutionRequest != null && devolutionRequest.status.equals("ACCEPTED")) {
                             for (SubSale subSale : subSales1) {
-                                DevolutionSubSale devolutionSubSale = viewModelStore.getAppDatabase().devolutionSubSaleDao().findDevolutionSubSaleBySubSaleId(subSale.subSaleId);
+                                DevolutionSubSale devolutionSubSale = conexion.devolutionSubSaleDao().findDevolutionSubSaleBySubSaleId(subSale.subSaleId);
                                 subSale.price = (subSale.price / subSale.quantity) * devolutionSubSale.quantity;
                                 subSale.quantity = devolutionSubSale.quantity;
                             }
@@ -430,6 +421,7 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
                         SaleResponseDTO[] sales = new SaleResponseDTO[saleResponseDTOS.size()];
                         saleResponseDTOS.toArray(sales);
                         setSalesOfDay(sales);
+                        setSalesArray(sales);
                         checkAccumulatedOffline(subSales);
                     }
                 });
@@ -439,20 +431,19 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
 
     @RequiresApi(api = Build.VERSION_CODES.N)
     void fillSalesDebOffline(String date){
-
             executor.execute(new  Runnable() {
                 @RequiresApi(api = Build.VERSION_CODES.O)
                 @Override
                 public void run() {
+                    AppDatabase conexion=AppDatabase.getInstance(getContext());
                     String dateParsed1 = date+"T00:00:00.000Z";
                     String dateParsed2 = date+"T23:59:59.000Z";
                     //Background work here
                     List<SaleResponseDTO> saleResponseDTOS=new ArrayList<>();
                     List<SubSale> subSales = new ArrayList<>();
-                    List<Sale> sales = viewModelStore.getAppDatabase().saleDao().getAllDebts();
-
-                    List<Debt> debts = viewModelStore.getAppDatabase().debtDao().getAllSalesWithoutSincronization();
-                    List<Debt> debtsPayed = viewModelStore.getAppDatabase().debtDao().getAllSalesDebtsBetweenDates(dateParsed1,dateParsed2);
+                    List<Sale> sales = conexion.saleDao().getAllDebts();
+                    List<Debt> debts = conexion.debtDao().getAllDebsWithoutSincronization();
+                    List<Debt> debtsPayed = conexion.debtDao().getAllSalesDebtsBetweenDates(dateParsed1,dateParsed2);
                     List<String> listDebts = debts.stream().map(x->x.folio).collect(Collectors.toList());
                     for(Debt debt : debtsPayed){
                         if(!listDebts.contains(debt.folio)){
@@ -462,7 +453,7 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
                     List<String> salesIds = sales.stream().map(x->x.folio).collect(Collectors.toList());
                     for(Debt debt : debts){
                         if(!salesIds.contains(debt.folio)){
-                            Sale sale= viewModelStore.getAppDatabase().saleDao().getByFolio(debt.folio);
+                            Sale sale= conexion.saleDao().getByFolio(debt.folio);
                             sales.add(sale);
                         }
                     }
@@ -485,7 +476,7 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
                         saleResponseDTO.setCancelAutorized(sale.cancelAutorized);
                         System.out.println("Estatus: "+sale.statusStr);
                             saleResponseDTOS.add(saleResponseDTO);
-                            List<SubSale> subSales1 = viewModelStore.getAppDatabase().subSalesDao().getSubSalesBySale(sale.folio);
+                            List<SubSale> subSales1 = conexion.subSalesDao().getSubSalesBySale(sale.folio);
                             System.out.println("Total subsales : "+subSales1.size());
                             for (SubSale subSale : subSales1) {
                                 subSales.add(subSale);
@@ -496,14 +487,16 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
-
-                                SaleResponseDTO[] sales = new SaleResponseDTO[saleResponseDTOS.size()];
-                                saleResponseDTOS.toArray(sales);
-                                setSalesDebtsOfDay(sales);
-
+                                SaleResponseDTO[] salesFiltered = new SaleResponseDTO[saleResponseDTOS.size()];
+                                saleResponseDTOS.toArray(salesFiltered);
+                                setSalesDebtsOfDay(salesFiltered);
+                                setSalesArray(salesFiltered);
                         }
                     });
                 }});
+    }
+    private void setSalesArray(SaleResponseDTO[] sales){
+        this.sales=sales;
     }
 
     void checkAccumulatedOffline(List<SubSale> subSales){
@@ -587,7 +580,7 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
                 break;
             case R.id.printerButton:
                     if(isLoading==false && this.printerConnected==true) {
-                        // connect to printer
+
                         printerNoConnected();
                         this.printerConnected=false;
                         if(this.printerUtil!=null) {
@@ -596,6 +589,7 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
                         }
                     }else if(isLoading==false && this.printerConnected==false){
                         activatePrinter();
+
                     }
                 break;
             case R.id.devolutionsButton:
@@ -644,12 +638,13 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
             @RequiresApi(api = Build.VERSION_CODES.O)
             @Override
             public void run() {
+                AppDatabase conexion=AppDatabase.getInstance(getContext());
                 String dateParsed1 = dateSelected + "T00:00:00.000Z";
                 String dateParsed2 = dateSelected + "T23:59:59.000Z";
-                List<Sale> sales = viewModelStore.getAppDatabase().devolutionRequestDao().getAllBetweenDate(dateParsed1,dateParsed2);
+                List<Sale> sales = conexion.devolutionRequestDao().getAllBetweenDate(dateParsed1,dateParsed2);
                 mapDevolutionsStatus= new HashMap<>();
                 for(Sale sale : sales) {
-                    DevolutionRequest devolutionRequest = viewModelStore.getAppDatabase().devolutionRequestDao().findDevolutionRequestByFolioRegister(sale.folio);
+                    DevolutionRequest devolutionRequest = conexion.devolutionRequestDao().findDevolutionRequestByFolioRegister(sale.folio);
                     mapDevolutionsStatus.put(sale.folio,devolutionRequest.status);
                 }
                 handler.post(new Runnable() {
@@ -690,12 +685,9 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
 
     @Override
     public void setSalesOfDay(SaleResponseDTO[] salestemp) {
-        //isLoading=false;
-        if(sales==null){
-            sales=salestemp;
-        }
+
         listSales.removeAllViewsInLayout();
-        System.out.println("Sales length: "+sales.length);
+        System.out.println("Sales length: "+salestemp.length);
         SaleListAdapter saleListAdapter = new SaleListAdapter(getContext(),salestemp,salesPresenter,modeOffline,this);
         listSales.setAdapter(saleListAdapter);
 
@@ -703,10 +695,7 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
 
     @Override
     public void setSalesDebtsOfDay(SaleResponseDTO[] salestemp) {
-        //isLoading=false;
-        if(sales==null){
-            sales = salestemp;
-        }
+
         listSales.removeAllViewsInLayout();
         SaleDebtListAdapter saleListAdapter = new SaleDebtListAdapter(getContext(),salestemp,salesPresenter);
         listSales.setAdapter(saleListAdapter);
@@ -717,7 +706,7 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
         if(this.printerUtil==null){
             this.printerUtil = new PrinterUtil(getContext());
         }
-            salesPresenter.getTicket(ticketId);
+        salesPresenter.getTicket(ticketId);
     }
 
     @RequiresApi(api = Build.VERSION_CODES.N)
@@ -739,12 +728,13 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
         executor.execute(new Runnable() {
             @Override
             public void run() {
-                Sale sale = viewModelStore.getAppDatabase().saleDao().getByFolio(folio);
-                DevolutionRequest devolutionRequest = viewModelStore.getAppDatabase().devolutionRequestDao().findDevolutionRequestByFolioRegister(sale.folio);
-                List<SubSale> subSales = viewModelStore.getAppDatabase().subSalesDao().getSubSalesBySale(folio);
+                AppDatabase conexion=AppDatabase.getInstance(getContext());
+                Sale sale = conexion.saleDao().getByFolio(folio);
+                DevolutionRequest devolutionRequest = conexion.devolutionRequestDao().findDevolutionRequestByFolioRegister(sale.folio);
+                List<SubSale> subSales = conexion.subSalesDao().getSubSalesBySale(folio);
                 Map<String,Product> productsMap = new HashMap<>();
                 for(SubSale subSale : subSales){
-                    Product product = viewModelStore.getAppDatabase().productDao().getProductByKey(subSale.productKey);
+                    Product product = conexion.productDao().getProductByKey(subSale.productKey);
                     productsMap.put(subSale.productKey,product);
                 }
                 if(devolutionRequest!=null) {
@@ -768,7 +758,7 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
                         devolutionSubSalesToReprint += "PRODUCTO NO DEVUELTO: \n";
                     }
                     for(SubSale subSale : subSales){
-                        List<DevolutionSubSale> devolutionSubSales = viewModelStore.getAppDatabase().devolutionSubSaleDao().findAllDevolutionSubSaleBySubSaleId(subSale.subSaleId);
+                        List<DevolutionSubSale> devolutionSubSales = conexion.devolutionSubSaleDao().findAllDevolutionSubSaleBySubSaleId(subSale.subSaleId);
                         Float toDevolution=Float.parseFloat("0");
                         for(DevolutionSubSale devolutionSubSale1 : devolutionSubSales){
                             System.out.println("SubDevolutionId: "+devolutionSubSale1.quantity);
@@ -783,6 +773,7 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
                     devolutionSubSalesToReprint+="MOTIVO: \n"+devolutionRequest.description;
                 }
                 handler.post(new Runnable() {
+                    @RequiresApi(api = Build.VERSION_CODES.O)
                     @Override
                     public void run() {
                         if(sale!=null){
@@ -795,10 +786,21 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
         });
     }
 
-    void doTicketSaleOffline(Sale sale,List<SubSale> subSales,Map<String,Product> productMap){
-        Calendar calendar = Calendar.getInstance();
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    void
+    doTicketSaleOffline(Sale sale, List<SubSale> subSales, Map<String,Product> productMap){
+
+        Calendar cal = Calendar.getInstance();
+        Instant instant = cal.toInstant();
+        try{
+            instant = Instant.parse(sale.date);
+            cal.setTime(Date.from(instant));
+            cal.add(Calendar.HOUR_OF_DAY,5);
+        }catch(RuntimeException pe){
+            System.out.println("Error al parsear fecha de impresion");
+        }
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd h:mm a");
-        String dateParsed = dateFormat.format(calendar.getTime());
+        String dateParsed = dateFormat.format(cal.getTime());
         String ticket = "ROVIANDA SAPI DE CV\nAV.1 #5 Esquina Calle 1\nCongregación Donato Guerra\nParque Industrial Valle de Orizaba\nC.P 94780\nRFC 8607056P8\nTEL 272 72 46077, 72 4 5690\n";
         ticket+="Pago en una Sola Exhibición\nLugar de Expedición: Ruta\nNota No. "+sale.folio+"\nFecha: "+dateParsed+"\n\n";
         ticket+="Vendedor:"+viewModelStore.getStore().getUsername()+"\n";
@@ -812,7 +814,7 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
         if(sale.devolutionId!=null){
             ticket+="\nDEVOLUCIÓN "+statusDevolutionToEndDay;
         }
-        ticket+="\nCliente: "+sale.clientName+"\nClave: "+sale.keyClient+"\n";
+        ticket+="\nCliente: "+sale.clientName+"\n"+(sale.isTempKeyClient==true?"Clave Temp:":"Clave: ")+sale.keyClient+"\n";
         ticket+="Tipo de venta: "+ sale.typeSale +"\n--------------------------------\nDESCR   PRECIO   CANT  IMPU.   IMPORTE \n--------------------------------\n";
         Float total = Float.parseFloat("0");
         Float totalImp = Float.parseFloat("0");
@@ -870,97 +872,6 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
         return (amount/(100+percent))*percent;
     }
 
-    /*void setSaleDetails(Long saleId,String folio){
-        SaleDTO saleDTO=new SaleDTO();
-        executor.execute(new  Runnable() {
-            @RequiresApi(api = Build.VERSION_CODES.N)
-            @Override
-            public void run() {
-
-                Sale sale=viewModelStore.getAppDatabase().saleDao().getBySaleId(Integer.parseInt(saleId.toString()));
-                if(sale==null){
-                    sale = viewModelStore.getAppDatabase().saleDao().getByFolio(folio);
-                }
-                if(sale!=null) {
-                    saleDTO.setAmount(sale.amount);
-                    saleDTO.setClientName(sale.clientName);
-                    saleDTO.setCredit(sale.credit);
-                    saleDTO.setDate(sale.date);
-                    saleDTO.setFolio(sale.folio);
-                    saleDTO.setKeyClient(sale.keyClient);
-                    saleDTO.setPayed(sale.payed);
-                    saleDTO.setSellerId(sale.sellerId);
-                    saleDTO.setStatus(sale.status);
-                    saleDTO.setStatusStr(sale.statusStr);
-                    saleDTO.setTypeSale(sale.typeSale);
-                    saleDTO.setClientId(sale.clientId);
-                    List<SubSale> subSales = viewModelStore.getAppDatabase().subSalesDao().getSubSalesBySale(folio);
-                    List<ProductSaleDTO> productSaleDTOS = new ArrayList<>();
-                    for(SubSale subSale : subSales){
-                        ProductSaleDTO productSaleDTO = new ProductSaleDTO();
-                        productSaleDTO.setPresentationId(subSale.presentationId);
-                        productSaleDTO.setPrice(subSale.price);
-                        productSaleDTO.setProductId(subSale.productId);
-                        productSaleDTO.setProductKey(subSale.productKey);
-                        productSaleDTO.setProductName(subSale.productName);
-                        productSaleDTO.setProductPresentation(subSale.productPresentationType);
-                        productSaleDTO.setQuantity(subSale.quantity);
-                        productSaleDTO.setTypeUnid(subSale.uniMed);
-                        productSaleDTO.setWeightOriginal(subSale.weightStandar);
-                        productSaleDTOS.add(productSaleDTO);
-                    }
-                    saleDTO.setProducts(productSaleDTOS);
-                }
-
-
-
-                handler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                            if(saleDTO.getFolio()!=null) {
-                                doTicketSaleOffline(saleDTO);
-                            }
-                    }
-                });
-            }
-        });
-    }*/
-
-/*
-    @RequiresApi(api = Build.VERSION_CODES.N)
-    void doTicketSaleOffline(SaleDTO saleDTO){
-        Calendar calendar = Calendar.getInstance();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-        String dateParsed = dateFormat.format(calendar.getTime());
-        String ticket = "ROVIANDA SAPI DE CV\nAV.1 #5 Esquina Calle 1\nCongregación Donato Guerra\nParque Industrial Valle de Orizaba\nC.P 94780\nRFC 8607056P8\nTEL 272 72 46077, 72 4 5690\n";
-        ticket+="Pago en una Sola Exhibición\nLugar de Expedición: Ruta\nNota No. "+saleDTO.getFolio()+"\nFecha: "+dateParsed+"\n\n";
-        ticket+="Vendedor:"+viewModelStore.getStore().getUsername()+"\n\nCliente: "+ saleDTO.getClientName()+"\n";
-        ticket+="Tipo de venta: "+ saleDTO.getTypeSale() +"\n--------------------------------\nDESCR   CANT    PRECIO  IMPORTE\n--------------------------------\n";
-        Float total = Float.parseFloat("0");
-        for(ProductSaleDTO product : saleDTO.getProducts()){
-            if(product.getTypeUnid().equals("PZ")) {
-                ticket += product.getProductName() + " " + product.getProductPresentation() + "\n" + product.getPrice() +" "+ Math.round(product.getQuantity()) + "pz "  +" "+String.format("%.02f",product.getPrice()*product.getQuantity()) +"\n";
-            }else{
-                ticket += product.getProductName() + " " + product.getProductPresentation() + "\n"+ Math.round(product.getPrice()) +" " + product.getQuantity() + "kg "+ " "+String.format("%.02f",product.getPrice()*product.getQuantity())+ "\n";
-            }
-
-            total+=product.getPrice()*product.getQuantity();
-        }
-        ticket+="--------------------------------\nTOTAL: $ "+String.format("%.02f",total)+"\n\n\n";
-        //ticket+="ticket+=`Piezas:  \n\n*** GRACIAS POR SU COMPRA ***\n";
-        System.out.println("Tipo de venta"+saleDTO.getTypeSale());
-        if(saleDTO.getTypeSale().equals("Crédito") || saleDTO.getTypeSale().equals("CREDITO")){
-            ticket+="Esta venta se incluye en la\nventa global del dia, por el\npresente reconozco deber\ny me obligo a pagar en esta\nciudad y cualquier otra que\nse me de pago a la orden de\nROVIANDA S.A.P.I. de C.V. la\ncantidad que se estipula como\ntotal en el presente documento.\n-------------------\n      Firma\n\n";
-            ticket+=(saleDTO.getStatus())?"\nSE ADEUDA\n\n\n\n\n":"\nPAGADO\n\n\n\n\n";
-
-        }
-        if(cobranza) {
-            fillSalesDebOffline();
-        }
-        reprintTicket(ticket);
-
-    }*/
-
 
     @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
@@ -968,19 +879,26 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
         executor.execute(new Runnable() {
             @Override
             public void run() {
-                Sale sale = viewModelStore.getAppDatabase().saleDao().getByFolio(folio);
+                AppDatabase conexion=AppDatabase.getInstance(getContext());
+                Sale sale = conexion.saleDao().getByFolio(folio);
                 if(sale!=null && !sale.statusStr.equals("CANCELED")){
                     sale.statusStr="CANCELED";
                     sale.modified=true;
                     sale.status=false;
-                    viewModelStore.getAppDatabase().saleDao().updateSale(sale);
-                    viewModelStore.getAppDatabase().debtDao().deleteDebtForDeleteSale(sale.folio);
+                    conexion.saleDao().updateSale(sale);
+                    conexion.debtDao().deleteDebtForDeleteSale(sale.folio);
                 }
 
                 handler.post(new Runnable() {
                     @Override
                     public void run() {
                         fillSalesOffline(dateSelected);
+                        if(hasInternet){
+                            modalHasInternetCancelationRequest(folio);
+                        }else{
+                            modalInfo("Por el momento no cuentas con internet o señal telefonica, Favor de dirijirse a un lugar con señal o espere a que el telefono detecte internet y se reinicie el proceso de sincronización.");
+                        }
+
                     }
                 });
 
@@ -990,34 +908,195 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
     }
 
 
-    @RequiresApi(api = Build.VERSION_CODES.N)
-    public void setModeOffline(ModeOfflineModel modeOffline) {
 
-        circularProgressIndicator.setVisibility(View.GONE);
+    void sendCancelationToServer(String folio){
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                AppDatabase conexion=AppDatabase.getInstance(getContext());
+                Sale sale = conexion.saleDao().getByFolio(folio);
+                List<ModeOfflineSM> modeOfflineSMS = new ArrayList<>();
+                if(sale!=null) {
+                    ModeOfflineSM modeOfflineSM = new ModeOfflineSM();
+                    modeOfflineSM.setAmount(sale.amount);
+                    modeOfflineSM.setClientId(sale.clientId);
+                    modeOfflineSM.setCredit(sale.credit);
+                    modeOfflineSM.setDate(sale.date);
+                    modeOfflineSM.setFolio(sale.folio);
+                    modeOfflineSM.setPayedWith(sale.payed);
+                    modeOfflineSM.setSellerId(sale.sellerId);
+                    modeOfflineSM.setStatus(sale.status);
+                    modeOfflineSM.setStatusStr(sale.statusStr);
+                    modeOfflineSM.setTypeSale(sale.typeSale);
+                    List<SubSale> subSales = conexion.subSalesDao().getSubSalesBySale(sale.folio);
+                    List<ModeOfflineSMP> modeOfflineSMPS = new ArrayList<>();
+                    for (SubSale subSale : subSales) {
+                        ModeOfflineSMP modeOfflineSMP = new ModeOfflineSMP();
+                        modeOfflineSMP.setPresentationId(subSale.presentationId);
+                        modeOfflineSMP.setProductId(subSale.productId);
+                        modeOfflineSMP.setQuantity(subSale.quantity);
+                        modeOfflineSMP.setAmount(subSale.price);
+                        modeOfflineSMP.setAppSubSaleId(subSale.subSaleId);
+                        modeOfflineSMPS.add(modeOfflineSMP);
+                    }
+                    modeOfflineSM.setProducts(modeOfflineSMPS);
+                    modeOfflineSMS.add(modeOfflineSM);
+                }
 
-        String data = parser.toJson(modeOffline);
-        Calendar calendar = Calendar.getInstance();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-        String dateParsed = dateFormat.format(calendar.getTime());
-
-        try {
-
-            File root = new File(getContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "offline");
-            if (!root.exists()) {
-                root.mkdirs();
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if(modeOfflineSMS.size()>0){
+                            salesPresenter.sendCancelationRequest(modeOfflineSMS.get(0));
+                        }
+                    }
+                });
             }
-            File gpxfile = new File(root, "offline-"+dateParsed+".rovi");
-            FileWriter writer = new FileWriter(gpxfile);
-            writer.append(data);
-            writer.flush();
-            writer.close();
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        Toast.makeText(getContext(),"Se almaceno offline",Toast.LENGTH_SHORT).show();
+        });
+    }
 
+
+    AlertDialog dialogSinc=null;
+
+    public void modalHasInternetCancelationRequest(String folio){
+        LayoutInflater inflater = LayoutInflater.from(getContext());
+        View view = inflater.inflate(R.layout.dialog_load_message,null);
+        TextView messageLoad = view.findViewById(R.id.message_load);
+        messageLoad.setText("Se detecto una conexión, comprobando acceso a internet, (intentando sincronizar cancelación)");
+        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+        builder.setView(view);
+        builder.setCancelable(false);
+        this.dialogSinc=builder.create();
+        this.dialogSinc.show();
+        sendCancelationToServer(folio);
+    }
+
+    @Override
+    public void modalHasInternetVerifyCancelationRequest(String folio){
+        LayoutInflater inflater = LayoutInflater.from(getContext());
+        View view = inflater.inflate(R.layout.dialog_load_message,null);
+        TextView messageLoad = view.findViewById(R.id.message_load);
+        messageLoad.setText("Venta con solicitud de cancelación detectada, verificando status con sistema, por favor espere...");
+        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+        builder.setView(view);
+        builder.setCancelable(false);
+        this.dialogSinc=builder.create();
+        this.dialogSinc.show();
+        salesPresenter.verifyCancelation(folio);
+    }
+
+    @Override
+    public void closeModalVerifyCancelationRequest() {
+        if(this.dialogSinc!=null && this.dialogSinc.isShowing()){
+            this.dialogSinc.dismiss();
+        }
+    }
+
+    @Override
+    public void markSaleSincronized(String folio) {
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                AppDatabase conexion=AppDatabase.getInstance(getContext());
+                Sale sale = conexion.saleDao().getByFolio(folio);
+                if(sale!=null) {
+                    sale.sincronized = true;
+                    sale.modified = false;
+                    conexion.saleDao().updateSale(sale);
+                }
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        System.out.println("Venta actualizada...");
+                    }
+                });
+            }
+        });
+    }
+
+    @Override
+    public void updateStatusCancelation(String folio, String status) {
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                AppDatabase conexion=AppDatabase.getInstance(getContext());
+                Sale sale = conexion.saleDao().getByFolio(folio);
+                sale.statusStr=status;
+                if(status.equals("CANCELED")){
+                    sale.cancelAutorized="true";
+                }else if(status.equals("DECLINED")){
+                    sale.cancelAutorized="false";
+                }
+                conexion.saleDao().updateSale(sale);
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        fillSalesOffline(dateSelected);
+                    }
+                });
+            }
+        });
+    }
+
+    AlertDialog modalSuccess=null;
+    @Override
+    public void modalInfo(String msg){
+        if(this.dialogSinc!=null && this.dialogSinc.isShowing()) {this.dialogSinc.dismiss();}
+        LayoutInflater inflater = LayoutInflater.from(getContext());
+        View view = inflater.inflate(R.layout.modal_success_operation,null);
+        TextView messageLoad = view.findViewById(R.id.message_load);
+        Button btnAccept = view.findViewById(R.id.acceptButtonModal);
+        messageLoad.setText(msg);
+        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+        builder.setView(view);
+        builder.setCancelable(false);
+        this.modalSuccess=builder.create();
+        this.modalSuccess.show();
+        btnAccept.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                modalSuccess.dismiss();
+            }
+        });
+    }
+    ConnectivityManager.NetworkCallback networkCallback = null;
+    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+    void unregisteredNetworkCallback(){
+        ConnectivityManager connectivityManager = (ConnectivityManager) getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+        connectivityManager.unregisterNetworkCallback(networkCallback);
+        networkCallback=null;
+    }
+    Boolean isConnected=true;
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    void checkConnection(){
+        if(this.networkCallback!=null){
+            this.unregisteredNetworkCallback();
+        }
+        ConnectivityManager connectivityManager = (ConnectivityManager) getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+        this.networkCallback=new ConnectivityManager.NetworkCallback(){
+            @Override
+            public void onAvailable(@NonNull Network network) {
+                isConnected=true;
+                hasInternet=false;
+                salesPresenter.checkCommunicationToServer();
+            }
+            @Override
+            public void onLost(@NonNull Network network) {
+                isConnected=false;
+                setStatusConnectionServer(false);
+            }
+        };
+        connectivityManager.registerDefaultNetworkCallback(this.networkCallback);
+    }
+    Boolean hasInternet=true;
+    @Override
+    public void setStatusConnectionServer(Boolean statusConnectionServer) {
+        hasInternet=statusConnectionServer;
+    }
+
+    @Override
+    public Boolean getStatusConnectionServer() {
+        return hasInternet;
     }
 
     int intentsToClose=0;
@@ -1037,7 +1116,7 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
             @Override
             public void onClick(View v) {
                 System.out.println("Printerconnected: " + printerConnected);
-
+                System.out.println("Ticket: "+ticket);
                 printTiket(ticket);
             }
         });
@@ -1099,6 +1178,21 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
                     }
                 }).setCancelable(false).create();
         dialog.show();
+    }
+
+
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    void checkPermissionsBluetooth() {
+        if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED || ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
+            System.out.println("NOT HAS");
+            ActivityCompat.requestPermissions(getActivity(),
+                    new String[]{Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN},
+                    102);
+
+        } else if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
+            System.out.println("HAS");
+            activatePrinter();
+        }
     }
 
     @RequiresApi(api = Build.VERSION_CODES.N)
@@ -1191,7 +1285,8 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
                             executor.execute(new Runnable() {
                                 @Override
                                 public void run() {
-                                    viewModelStore.getAppDatabase().userDataInitialDao().updatePrinterAddress(viewModelStore.getStore().getSellerId(),printer.getAddress());
+                                    AppDatabase conexion=AppDatabase.getInstance(getContext());
+                                    conexion.userDataInitialDao().updatePrinterAddress(viewModelStore.getStore().getSellerId(),printer.getAddress());
                                     handler.post(new Runnable() {
 
                                         @Override
@@ -1224,8 +1319,6 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
     void showOptionsPayed(SaleResponseDTO sale){
         if(!paying) {
             String[] selectMode = contadoOptions;
-
-
             AlertDialog dialog = new MaterialAlertDialogBuilder(getContext()).setTitle("Seleccione el tipo de pago")
                     .setSingleChoiceItems(selectMode, selectionPay, new DialogInterface.OnClickListener() {
                         @Override
@@ -1279,8 +1372,7 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
                     System.out.println("acepto el cobró");
                     isLoading=true;
                     circularProgressIndicator.setVisibility(View.VISIBLE);
-                    //PayDebtsModel payDebtsModel = new PayDebtsModel();
-                    //payDebtsModel.setTypePayed(contadoOptions[selectionPay]);
+
                     setSalePayed(sale.getFolio(),contadoOptions[selectionPay]);
                 }else{
                     genericMessage("Venta no realizada","No se asignó un monto de pago ó se canceló el cobro");
@@ -1303,19 +1395,19 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
             @RequiresApi(api = Build.VERSION_CODES.O)
             @Override
             public void run() {
-
-                Sale  sale = viewModelStore.getAppDatabase().saleDao().getByFolio(folio);
-                List<SubSale> subSales = viewModelStore.getAppDatabase().subSalesDao().getSubSalesBySale(folio);
+                AppDatabase conexion=AppDatabase.getInstance(getContext());
+                Sale  sale = conexion.saleDao().getByFolio(folio);
+                List<SubSale> subSales = conexion.subSalesDao().getSubSalesBySale(folio);
                 Map<String,Product> productsMap = new HashMap<>();
                 for(SubSale subSale : subSales){
-                    Product product = viewModelStore.getAppDatabase().productDao().getProductByKey(subSale.productKey);
+                    Product product = conexion.productDao().getProductByKey(subSale.productKey);
                     productsMap.put(subSale.productKey,product);
                 }
                 if(sale!=null && sale.status){
                     sale.status=false;
                     sale.modified=true;
-                    viewModelStore.getAppDatabase().saleDao().updateSale(sale);
-                    Debt checkAlreadyExist = viewModelStore.getAppDatabase().debtDao().getDebtByFolio(folio);
+                    conexion.saleDao().updateSale(sale);
+                    Debt checkAlreadyExist = conexion.debtDao().getDebtByFolio(folio);
                     if(checkAlreadyExist==null) {
                         Debt debt = new Debt();
                         ZonedDateTime zdt = ZonedDateTime.now();
@@ -1327,7 +1419,7 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
                         debt.solped = true;
                         debt.sincronized=false;
                         debt.deleted=false;
-                        viewModelStore.getAppDatabase().debtDao().insertDebts(debt);
+                        conexion.debtDao().insertDebts(debt);
                     }
                 }
 
@@ -1355,8 +1447,8 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
 
     @Override
     public void setAcumulated(TotalSoldedDTO totalSoldedDTO) {
-        this.endDayButton.setText("TOTAL VENDIDO\n$ "+totalSoldedDTO.getTotalSolded());
-        this.eatTimeButton.setText("PESO TOTAL\n"+String.format("%.02f",totalSoldedDTO.getTotalWeight())+" KG");
+        this.totalCash.setText("TOTAL VENDIDO\n$ "+totalSoldedDTO.getTotalSolded());
+        this.totalWeight.setText("PESO TOTAL\n"+String.format("%.02f",totalSoldedDTO.getTotalWeight())+" KG");
     }
 
     @Override
@@ -1404,31 +1496,47 @@ public class SalesView  extends Fragment implements  View.OnClickListener,SaleVi
                 checkPrinterConnectionOffline(sale.getFolio());
             }
         });
-        cancelButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                optionsDialog.dismiss();
-                cancelSale(sale.getSaleId(), sale.getFolio());
+        if(sale.getStatusStr().equals("CANCELED") ) {
+            System.out.println("SALE: "+sale.getStatusStr()+" "+sale.getCancelAutorized()+" "+sale.getFolio());
+            if(sale.getCancelAutorized()==null || sale.getCancelAutorized().isEmpty()) {
+                cancelButton.setText("Verificar cancelación");
+                cancelButton.setVisibility(View.VISIBLE);
+                cancelButton.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        modalHasInternetVerifyCancelationRequest(sale.getFolio());
+                    }
+                });
+                devolutionButton.setVisibility(View.GONE);
+            }else if(sale.getCancelAutorized().equals("true")){
+                cancelButton.setVisibility(View.GONE);
+                devolutionButton.setVisibility(View.GONE);
             }
-        });
-        devolutionButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                optionsDialog.dismiss();
-                goToDevolutionSale(sale.getFolio());
-            }
-        });
+        }else{
+            cancelButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    optionsDialog.dismiss();
+                    cancelSale(sale.getSaleId(), sale.getFolio());
+                }
+            });
+
+            devolutionButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    optionsDialog.dismiss();
+                    goToDevolutionSale(sale.getFolio());
+                }
+            });
+        }
     }
 
     public void cancelSale(Long saleId,String folio){
-
         AlertDialog dialog = new MaterialAlertDialogBuilder(getContext()).setTitle("Cancelación de venta")
                 .setMessage("¿Está seguro que desea cancelar la venta?").setPositiveButton("Aceptar", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-
                         salesPresenter.cancelSaleOffline(folio);
-
                     }
                 }).setNegativeButton("Cancelar",new DialogInterface.OnClickListener() {
                     @Override

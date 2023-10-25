@@ -2,6 +2,9 @@ package com.example.ventasrovianda.home.view;
 
 import android.bluetooth.BluetoothDevice;
 
+import androidx.fragment.app.DialogFragment;
+
+import com.example.ventasrovianda.Utils.Models.AddressCoordenatesResponse;
 import com.example.ventasrovianda.Utils.Models.ClientDTO;
 import com.example.ventasrovianda.Utils.Models.CounterTime;
 import com.example.ventasrovianda.Utils.Models.ModeOfflineModel;
@@ -32,7 +35,7 @@ public interface HomeViewContract {
     void saleError(String msg);
     //void setCounterTimer(CounterTime counterTimer);
     void genericMessage(String title,String msg);
-
+    void setStatusConnectionServer(Boolean statusConnectionServer);
     //void setModeOffline(ModeOfflineModel modeOffline);
     //void setModeOffline(ModeOfflineModel modeOffline);
     //void dismissLoadModal();
@@ -41,4 +44,8 @@ public interface HomeViewContract {
     //void markSincronizedSale(String folio, Integer saleId, List<ModeOfflineSM> ModeOfflineSMS, Integer index);
 
     void completeSincronzation(SincronizationResponse sincronizationResponse);
+
+    public void onDialogPositiveClick(Double latitude,Double longitude);
+    public void onDialogNegativeClick();
+    public void setAddressForConfirm(AddressCoordenatesResponse addressForConfirm,Double latitude,Double longitude);
 }

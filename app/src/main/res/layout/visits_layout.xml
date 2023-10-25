@@ -4,26 +4,24 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/linearLayout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="#FFFFFF">
+    android:layout_height="match_parent">
 
     <LinearLayout
         android:id="@+id/linearLayout3"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:background="#FFFFFF"
+        android:background="#232532"
         android:orientation="vertical"
+        android:paddingBottom="10dp"
         app:layout_constraintBottom_toTopOf="@+id/linearLayout2"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
 
-
-
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
-            android:layout_height="120dp"
+            android:layout_height="wrap_content"
             android:background="#FFFFFF"
             android:checkable="false"
             android:clickable="false"
@@ -35,8 +33,9 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#070707"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:paddingLeft="10dp"
+            android:paddingRight="10dp">
 
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/cliente_input_search"
@@ -60,12 +59,24 @@
                 android:layout_width="match_parent"
                 android:layout_height="60dp"
                 android:text="Buscar"
-                android:textColor="#e1bc5c" />
+                android:textColor="#e1bc5c"
+                app:strokeColor="#B99FE8" />
 
         </LinearLayout>
+
+        <Button
+            android:id="@+id/goToVisitMap"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="@string/fragmentVisitToMapText"
+            android:textColor="#000000" />
+
         <RelativeLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="match_parent"
+            android:paddingLeft="10dp"
+            android:paddingRight="10dp">
 
             <ListView
                 android:id="@+id/listClientsVisits"
@@ -94,6 +105,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="#0B0B0A"
+            app:labelVisibilityMode="labeled"
             app:menu="@menu/bottom_navigation_menu" />
     </LinearLayout>
 

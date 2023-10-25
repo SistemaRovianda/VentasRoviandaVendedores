@@ -13,13 +13,19 @@ import com.android.volley.toolbox.BasicNetwork;
 import com.android.volley.toolbox.DiskBasedCache;
 import com.android.volley.toolbox.HurlStack;
 import com.android.volley.toolbox.StringRequest;
+import com.example.ventasrovianda.Utils.Constants;
 import com.example.ventasrovianda.Utils.GsonRequest;
+import com.example.ventasrovianda.Utils.Models.CancelRequestSincronizationResponse;
 import com.example.ventasrovianda.Utils.Models.ErrorResponse;
+import com.example.ventasrovianda.Utils.Models.ModeOfflineNewVersion;
+import com.example.ventasrovianda.Utils.Models.ModeOfflineSM;
 import com.example.ventasrovianda.Utils.Models.OrderDTO;
 import com.example.ventasrovianda.Utils.Models.PayDebtsModel;
 import com.example.ventasrovianda.Utils.Models.SaleDTO;
 import com.example.ventasrovianda.Utils.Models.SaleResponseDTO;
 import com.example.ventasrovianda.Utils.Models.SaleSuccess;
+import com.example.ventasrovianda.Utils.Models.SincronizationNewVersionRequest;
+import com.example.ventasrovianda.Utils.Models.SincronizationResponse;
 import com.example.ventasrovianda.Utils.Models.TotalSoldedDTO;
 import com.example.ventasrovianda.sales.view.SaleViewContract;
 import com.example.ventasrovianda.sales.view.SalesView;
@@ -41,7 +47,7 @@ public class SalesPresenter implements SalePresenterContract {
     //JsonRequest
     private Cache cache;
     private Network network;
-    private String url ="https://us-central1-sistema-rovianda.cloudfunctions.net/app";//"https://us-central1-sistema-rovianda.cloudfunctions.net/app";
+    private String url = Constants.URL;
     private RequestQueue requestQueue;
     private Gson parser;
     public SalesPresenter(Context context,SalesView view){
@@ -319,6 +325,133 @@ public class SalesPresenter implements SalePresenterContract {
     public void reprintPaydeb(SaleResponseDTO sale) {
         view.printTicketSale(sale.getFolio());
     }
+    @Override
+    public void checkCommunicationToServer() {
 
+        Map<String,String> headers = new HashMap<>();
+        GsonRequest<ModeOfflineNewVersion> ping = new GsonRequest<ModeOfflineNewVersion>(
+                url + "/rovianda/ping", ModeOfflineNewVersion.class, headers, new Response.Listener<ModeOfflineNewVersion>() {
+            @Override
+            public void onResponse(ModeOfflineNewVersion response) {
 
+                view.setStatusConnectionServer(true);
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                view.setStatusConnectionServer(false);
+            }
+        },Request.Method.GET,null
+        );
+        requestQueue.add(ping).setRetryPolicy(new RetryPolicy() {
+            @Override
+            public int getCurrentTimeout() {
+                return 5000;
+            }
+
+            @Override
+            public int getCurrentRetryCount() {
+                return 0;
+            }
+
+            @Override
+            public void retry(VolleyError error) throws VolleyError {
+                error.printStackTrace();
+            }
+        });
+    }
+
+    @Override
+    public void sendCancelationRequest(ModeOfflineSM cancelation) {
+        Map<String,String> headers = new HashMap<>();
+        headers.put("Content-Type", "application/json");
+
+        GsonRequest<CancelRequestSincronizationResponse> cancelRequest = new GsonRequest<CancelRequestSincronizationResponse>
+                (url+"/rovianda/request-cancelations?sellerId="+cancelation.getSellerId(), CancelRequestSincronizationResponse.class,headers,
+                        new Response.Listener<CancelRequestSincronizationResponse>(){
+                            @Override
+                            public void onResponse(CancelRequestSincronizationResponse response) {
+                                view.markSaleSincronized(cancelation.getFolio());
+                                view.modalInfo("Se envió la cancelación al Sistema Rovianda, espere a su aprobación, la sincronización se hará en automatico dentro de unos minutos.");
+                            }
+
+                        },new Response.ErrorListener(){
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                                System.out.println("Error en request: "+error.getMessage());
+                                view.modalInfo("No fue posible enviar la cancelación debido a intermitencia de Red, la solicitud se enviará cuando la red sea mas estable o cuando haya buena señal.");
+                    }
+                }   , Request.Method.POST,parser.toJson(cancelation)
+                );
+        requestQueue.add(cancelRequest).setRetryPolicy(new RetryPolicy() {
+            @Override
+            public int getCurrentTimeout() {
+                return 15000;
+            }
+
+            @Override
+            public int getCurrentRetryCount() {
+                return 0;
+            }
+
+            @Override
+            public void retry(VolleyError error) throws VolleyError {
+
+            }
+        });
+    }
+
+    @Override
+    public void verifyCancelation(String folio) {
+        Map<String,String> headers = new HashMap<>();
+        headers.put("Content-Type", "application/json");
+
+        GsonRequest<CancelRequestSincronizationResponse> cancelRequest = new GsonRequest<CancelRequestSincronizationResponse>
+                (url+"/rovianda/check-cancelations?folio="+folio, CancelRequestSincronizationResponse.class,headers,
+                        new Response.Listener<CancelRequestSincronizationResponse>(){
+                            @Override
+                            public void onResponse(CancelRequestSincronizationResponse response) {
+                                view.closeModalVerifyCancelationRequest();
+                                switch(response.getRequestStatus()){
+                                    case "ACCEPTED":
+                                        view.updateStatusCancelation(folio,"CANCELED");
+                                        view.modalInfo("Se consultó la solicitud y ha sido aprobada.");
+                                        break;
+                                    case "PENDING":
+                                        view.modalInfo("Se consultó la solicitud y sigue pendiente de aprobación..");
+                                        break;
+                                    case "DECLINED":
+                                        view.updateStatusCancelation(folio,"ACTIVE");
+                                        view.modalInfo("Se consultó la solicitud y ha sido rechazada.");
+                                        break;
+                                }
+
+                            }
+
+                        },new Response.ErrorListener(){
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        System.out.println("Error en request: "+error.getMessage());
+                        view.closeModalVerifyCancelationRequest();
+                        view.modalInfo("No fue posible verificar la cancelación debido a intermitencia de Red, la solicitud se verificará cuando la red sea mas estable o cuando haya buena señal.");
+                    }
+                }   , Request.Method.GET,null
+                );
+        requestQueue.add(cancelRequest).setRetryPolicy(new RetryPolicy() {
+            @Override
+            public int getCurrentTimeout() {
+                return 15000;
+            }
+
+            @Override
+            public int getCurrentRetryCount() {
+                return 0;
+            }
+
+            @Override
+            public void retry(VolleyError error) throws VolleyError {
+
+            }
+        });
+    }
 }

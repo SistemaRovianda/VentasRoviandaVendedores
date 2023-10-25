@@ -12,6 +12,7 @@ import com.android.volley.VolleyError;
 import com.android.volley.toolbox.BasicNetwork;
 import com.android.volley.toolbox.DiskBasedCache;
 import com.android.volley.toolbox.HurlStack;
+import com.example.ventasrovianda.Utils.Constants;
 import com.example.ventasrovianda.Utils.GsonRequest;
 import com.example.ventasrovianda.Utils.Models.OrderDTO;
 import com.example.ventasrovianda.Utils.Models.ProductRoviandaToSale;
@@ -36,7 +37,7 @@ public class PedidoFormPresenter implements PedidoFormPresenterContract{
     private Network network;
     private Gson parser;
     private GsonRequest serviceConsumer;
-    private String url ="https://us-central1-sistema-rovianda.cloudfunctions.net/app";//"https://us-central1-sistema-rovianda.cloudfunctions.net/app";//"https://us-central1-sistema-rovianda.cloudfunctions.net/app";
+    private String url = Constants.URL;
     private RequestQueue requestQueue;
 
     public PedidoFormPresenter(Context context, PedidoForm view){

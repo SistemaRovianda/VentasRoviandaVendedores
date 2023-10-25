@@ -12,6 +12,7 @@ import com.android.volley.VolleyError;
 import com.android.volley.toolbox.BasicNetwork;
 import com.android.volley.toolbox.DiskBasedCache;
 import com.android.volley.toolbox.HurlStack;
+import com.example.ventasrovianda.Utils.Constants;
 import com.example.ventasrovianda.Utils.GsonRequest;
 import com.example.ventasrovianda.Utils.Models.OrderDetailsToEdit;
 import com.example.ventasrovianda.Utils.Models.ProductRoviandaToSale;
@@ -37,7 +38,7 @@ public class PedidoDetailsPresenter implements PedidoDetailsPresentarContract {
     private Network network;
     private Gson parser;
     private GsonRequest serviceConsumer;
-    private String url ="https://us-central1-sistema-rovianda.cloudfunctions.net/app";//"https://us-central1-sistema-rovianda.cloudfunctions.net/app";//"https://us-central1-sistema-rovianda.cloudfunctions.net/app";
+    private String url = Constants.URL;
     private RequestQueue requestQueue;
     public PedidoDetailsPresenter(Context context, PedidoDetails view){
         this.view = view;
@@ -100,13 +101,14 @@ public class PedidoDetailsPresenter implements PedidoDetailsPresentarContract {
                         new Response.Listener<String>() {
                             @Override
                             public void onResponse(String response) {
-                                view.goBack();
+                                view.successUpdate("Orden actualizada");
                             }
 
                         }, new Response.ErrorListener() {
                     @Override
                     public void onErrorResponse(VolleyError error) {
-                        System.out.println("ERROR: al cargar la orden");
+                        System.out.println("ERROR: al actualizar la orden");
+                        view.successUpdate("No fue posible actualizar la orden");
                     }
                 }, Request.Method.PUT, parser.toJson(request)
                 );

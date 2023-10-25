@@ -1,13 +1,18 @@
 package com.example.ventasrovianda.cotizaciones.view;
 
 import android.app.DatePickerDialog;
+import android.content.Context;
 import android.content.DialogInterface;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
+import android.net.ConnectivityManager;
+import android.net.Network;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
+import android.service.autofill.FillEventHistory;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
@@ -20,7 +25,9 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.DatePicker;
+import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -65,7 +72,9 @@ import com.example.ventasrovianda.Utils.Models.SincronizationResponse;
 import com.example.ventasrovianda.Utils.Models.SincronizeSingleSaleSuccess;
 import com.example.ventasrovianda.Utils.Models.SubSaleOfflineNewVersion;
 import com.example.ventasrovianda.Utils.ViewModelStore;
+import com.example.ventasrovianda.Utils.bd.AppDatabase;
 import com.example.ventasrovianda.Utils.bd.entities.Client;
+import com.example.ventasrovianda.Utils.bd.entities.ClientVisit;
 import com.example.ventasrovianda.Utils.bd.entities.Debt;
 import com.example.ventasrovianda.Utils.bd.entities.DevolutionRequest;
 import com.example.ventasrovianda.Utils.bd.entities.DevolutionResponseInitData;
@@ -76,6 +85,13 @@ import com.example.ventasrovianda.Utils.bd.entities.Sale;
 import com.example.ventasrovianda.Utils.bd.entities.SubSale;
 import com.example.ventasrovianda.Utils.bd.entities.UserDataInitial;
 import com.example.ventasrovianda.Utils.enums.ClientVisitStatus;
+import com.example.ventasrovianda.clientsv2.models.ClientV2Request;
+import com.example.ventasrovianda.clientsv2.models.ClientV2Response;
+import com.example.ventasrovianda.clientsv2.models.ClientV2UpdateRequest;
+import com.example.ventasrovianda.clientsv2.models.ClientV2UpdateResponse;
+import com.example.ventasrovianda.clientsv2.models.ClientV2VisitRequest;
+import com.example.ventasrovianda.clientsv2.models.ClientV2VisitResponse;
+import com.example.ventasrovianda.cotizaciones.models.SaleCreditPayedResponse;
 import com.example.ventasrovianda.cotizaciones.presenter.VisitsPresenter;
 import com.example.ventasrovianda.cotizaciones.presenter.VisitsPresenterContract;
 import com.example.ventasrovianda.cotizaciones.adapters.AdapterListClientVisit;
@@ -111,32 +127,27 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
     ListView simpleList;
     NavController navController;
     BottomNavigationView homeButton;
-    TextView logoutButton,endDayButton,eatTimeButton;
+    Button LogoutButton;
+    TextView endDayButton,eatTimeButton;
     VisitsPresenterContract presenter;
     ImageView printerButton;
     boolean isLoading=false;
     CircularProgressIndicator circularProgressIndicator;
     ClientDTO clientInVisit=null;
     BluetoothDeviceSerializable bluetoothDeviceSerializable=null;
-
     String userName;
     TextView userNameTextView;
-
     MaterialButton buscarCliente;
     TextInputLayout inputSearch;
     String currentHint="";
-    ClientOfflineMode[] clientsVisits=null;
-    ClientOfflineMode[] clientsVisitsTemp=null;
     boolean filtered=false;
-
-    ImageView download,upload;
-
+    ImageButton download,upload,resincronize;
+    LinearLayout downloadLayout,uploadLayout,linearLayoutResincronize;
     ViewModelStore viewModelStore;
+    Button goToVisitMap;
     Gson parser;
-
-    Boolean sincronized=false;
-    ImageView resincronizeButton;
-
+    String dateSincronization=null;
+    Boolean actionActivated=false;
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     @Nullable
     @Override
@@ -146,39 +157,40 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
 
         this.clientInVisit = VisitsViewArgs.fromBundle(getArguments()).getClientInVisit();
         this.userName = VisitsViewArgs.fromBundle(getArguments()).getUserName();
+        this.bluetoothDeviceSerializable = VisitsViewArgs.fromBundle(getArguments()).getPrinterDevice();
         this.userNameTextView = v.findViewById(R.id.userName);
         this.userNameTextView.setText("Usuario: "+this.userName);
         this.userNameTextView.setTextColor(Color.parseColor("#236EF2"));
         simpleList = (ListView) v.findViewById(R.id.listClientsVisits);
         this.navController = NavHostFragment.findNavController(this);
-        this.logoutButton = v.findViewById(R.id.Logout_button);
-        this.logoutButton.setOnClickListener(this);
+        this.LogoutButton = v.findViewById(R.id.Logout_button);
+        this.LogoutButton.setOnClickListener(this);
         this.printerButton = v.findViewById(R.id.printerButton);
         this.printerButton.setVisibility(View.INVISIBLE);
         this.printerButton.setOnClickListener(this);
         this.circularProgressIndicator = v.findViewById(R.id.loginLoadingSpinner);
-        //circularProgressIndicator.setVisibility(View.VISIBLE);
         this.download = v.findViewById(R.id.downloadChanges);
         this.upload = v.findViewById(R.id.uploadChanges);
-        this.download.setVisibility(View.VISIBLE);
-        this.upload.setVisibility(View.VISIBLE);
+        this.resincronize = v.findViewById(R.id.resincronize);
+        this.downloadLayout= v.findViewById(R.id.linearLayoutDownload);
+        this.downloadLayout.setVisibility(View.VISIBLE);
+        this.uploadLayout = v.findViewById(R.id.linearLayoutUpload);
+        this.uploadLayout.setVisibility(View.VISIBLE);
+        this.goToVisitMap= v.findViewById(R.id.goToVisitMap);
+        this.goToVisitMap.setOnClickListener(this);
+        this.linearLayoutResincronize = v.findViewById(R.id.linearLayoutResincronize);
+        this.linearLayoutResincronize.setVisibility(View.VISIBLE);
         this.download.setOnClickListener(this);
         this.upload.setOnClickListener(this);
+        this.resincronize.setOnClickListener(this);
         this.presenter = new VisitsPresenter(getContext(),this);
-        this.resincronizeButton=v.findViewById(R.id.resincronizeButton);
-        this.resincronizeButton.setVisibility(View.VISIBLE);
-        this.resincronizeButton.setOnClickListener(this);
-        //this.presenter.getClientsVisits();
-        //isLoading=true;
+
         homeButton = v.findViewById(R.id.bottom_navigation_cotizaciones);
         homeButton.setSelectedItemId(R.id.visitas_section);
         this.endDayButton = v.findViewById(R.id.end_day_button);
         this.endDayButton.setOnClickListener(this);
-        this.eatTimeButton = v.findViewById(R.id.eat_time_button);
-        this.eatTimeButton.setOnClickListener(this);
         this.endDayButton.setVisibility(View.GONE);
-        this.eatTimeButton.setVisibility(View.GONE);
-        this.bluetoothDeviceSerializable = VisitsViewArgs.fromBundle(getArguments()).getPrinterDevice();
+
 
         this.buscarCliente = v.findViewById(R.id.buscarClienteButton);
         this.buscarCliente.setOnClickListener(this);
@@ -213,22 +225,27 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
             }
         });
         homeButton.setOnNavigationItemSelectedListener(new BottomNavigationView.OnNavigationItemSelectedListener() {
+            @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
             @Override
             public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                 switch (item.getItemId()){
                     case R.id.home_section:
+
                         goToHome();
                         break;
                     case R.id.visitas_section:
                         System.out.println("No cambia de seccion");
                         break;
                     case R.id.cliente_section:
+
                         goToClient();
                         break;
                     case R.id.pedidos_section:
+
                         goToPedidos();
                         break;
                     case R.id.ventas_section:
+
                         goToHistory();
                         break;
 
@@ -240,7 +257,6 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
         return v;
     }
 
-
     
 
     ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -249,17 +265,17 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
     @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     public void setModeOffline(ModeOfflineNewVersion modeOffline) {
-
-        isLoading=false;
-        circularProgressIndicator.setVisibility(View.GONE);
+        setUploadingStatus(false);
         executor.execute(new Runnable() {
             @Override
             public void run() {
+                AppDatabase conexion = AppDatabase.getInstance(getContext());
+                UserDataInitial userDataInitial = conexion.userDataInitialDao().getDetailsInitialByUid(viewModelStore.getStore().getSellerId());
 
-                UserDataInitial userDataInitial = viewModelStore.getAppDatabase().userDataInitialDao().getDetailsInitialByUid(viewModelStore.getStore().getSellerId());
                 if (userDataInitial == null) {
                     UserDataInitial userDataInitial1 = new UserDataInitial();
                     userDataInitial1.name = modeOffline.getName();
+                    userName=modeOffline.getName();
                     userDataInitial1.count = modeOffline.getCount();
                     userDataInitial1.email = modeOffline.getEmail();
                     userDataInitial1.lastSincronization = modeOffline.getLastSicronization();
@@ -267,11 +283,25 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
                     userDataInitial1.nomenclature = modeOffline.getNomenclature();
                     userDataInitial1.uid = modeOffline.getUid();
                     userDataInitial1.password = modeOffline.getPassword();
-                    viewModelStore.getAppDatabase().userDataInitialDao().insertUserDataDetail(userDataInitial1);
-                    System.out.println("Data init user installed");
+                    conexion.userDataInitialDao().insertUserDataDetail(userDataInitial1);
+                    System.out.println("Informacion de usuario guardada");
+                    System.out.println("Usuario: "+userDataInitial1.name);
+                }else{
+                    UserDataInitial userDataInitial1 = conexion.userDataInitialDao().getDetailsInitialByUid(viewModelStore.getStore().getSellerId());
+                    userDataInitial1.name = modeOffline.getName();
+                    userName=modeOffline.getName();
+                    userDataInitial1.count = modeOffline.getCount();
+                    userDataInitial1.email = modeOffline.getEmail();
+                    userDataInitial1.lastSincronization = modeOffline.getLastSicronization();
+                    userDataInitial1.logedIn = true;
+                    userDataInitial1.nomenclature = modeOffline.getNomenclature();
+                    userDataInitial1.uid = modeOffline.getUid();
+                    userDataInitial1.password = modeOffline.getPassword();
+                    conexion.userDataInitialDao().updateUserData(userDataInitial1);
+                    System.out.println("Actualizando vendedor");
                 }
                 for (ProductToSaveEntity productToSave : modeOffline.getProducts()) {
-                    Product product = viewModelStore.getAppDatabase().productDao().getProductByProduct(productToSave.getProductKey(), viewModelStore.getStore().getSellerId());
+                    Product product = conexion.productDao().getProductByProduct(productToSave.getProductKey(), viewModelStore.getStore().getSellerId());
                     if (product == null) {
                         Product product1 = new Product();
                         product1.name = productToSave.getName();
@@ -286,8 +316,8 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
                         product1.sellerId = viewModelStore.getStore().getSellerId();
                         product1.esqKey=productToSave.getEsqKey();
                         product1.esqDescription = productToSave.getEsqDescription();
-                        viewModelStore.getAppDatabase().productDao().insertProduct(product1);
-                        System.out.println("Product installed: " + product1.name + " " + product1.presentationName);
+                        conexion.productDao().insertProduct(product1);
+                        System.out.println("Producto instalado: " + product1.name + " " + product1.presentationName);
                     } else {
                         product.name = productToSave.getName();
                         product.presentationId = productToSave.getPresentationId();
@@ -300,17 +330,18 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
                         product.sellerId = viewModelStore.getStore().getSellerId();
                         product.esqKey = productToSave.getEsqKey();
                         product.esqDescription=productToSave.getEsqDescription();
-                        viewModelStore.getAppDatabase().productDao().updateProduct(product);
+                        conexion.productDao().updateProduct(product);
+                        System.out.println("Producto actualizad: " + product.name + " " + product.presentationName);
                     }
 
                 }
 
                 List<Integer> clientsUpdated = new ArrayList<>();
                 for (ClientToSaveEntity clientItem : modeOffline.getClients()) {
-                    Client client = viewModelStore.getAppDatabase().clientDao().getClientBydId(clientItem.getClientId());
+                    Client client = conexion.clientDao().getClientBydId(clientItem.getClientId());
                     if (client == null) {
                         Client clientEntity = new Client();
-                        clientEntity.clientId = clientItem.getClientId();
+                        clientEntity.clientRovId = clientItem.getClientId();
                         clientEntity.clientKey = clientItem.getKeyClient();
                         clientEntity.name = clientItem.getName();
                         clientEntity.creditLimit = clientItem.getCreditLimit();
@@ -325,13 +356,24 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
                         clientEntity.friday = clientItem.getFriday();
                         clientEntity.saturday = clientItem.getSaturday();
                         clientEntity.sunday = clientItem.getSunday();
-                        viewModelStore.getAppDatabase().clientDao().insertClient(clientEntity);
-                        System.out.println("Client installed: " + clientEntity.name);
+                        clientEntity.street=clientItem.getStreet();
+                        clientEntity.municipality=clientItem.getMunicipality();
+                        clientEntity.suburb=clientItem.getSuburb();
+                        clientEntity.latitude=clientItem.getLatitude();
+                        clientEntity.longitude=clientItem.getLongitude();
+                        clientEntity.sincronized=true;
+                        clientEntity.registeredInMobile=false;
+                        if(clientItem.getExtNum()!=null) {
+                            clientEntity.noExterior = clientItem.getExtNum().toString();
+                        }
+                        conexion.clientDao().insertClient(clientEntity);
+                        System.out.println("Cliente instalado: " + clientEntity.name);
                         if (clientItem.getKeyClient() == 1175) {
-                            System.out.println("Client: " + clientItem.getKeyClient());
+                            System.out.println("Cliente para todos: "+clientItem.getName()+" - " + clientItem.getKeyClient());
                         }
                     } else {
                         if (clientItem.getModified()) {
+                            client.type= clientItem.getType();
                             client.clientKey = clientItem.getKeyClient();
                             client.cp = clientItem.getCp();
                             client.creditLimit = clientItem.getCreditLimit();
@@ -344,17 +386,27 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
                             client.friday = clientItem.getFriday();
                             client.saturday = clientItem.getSaturday();
                             client.sunday = clientItem.getSunday();
-                            viewModelStore.getAppDatabase().clientDao().updateClient(client);
+                            client.street=clientItem.getStreet();
+                            client.municipality=clientItem.getMunicipality();
+                            client.suburb=clientItem.getSuburb();
+                            client.latitude=clientItem.getLatitude();
+                            client.longitude=clientItem.getLongitude();
+                            client.sincronized=true;
+                            if(clientItem.getExtNum()!=null) {
+                                client.noExterior = clientItem.getExtNum().toString();
+                            }
+                            conexion.clientDao().updateClient(client);
                             clientsUpdated.add(clientItem.getClientId());
+                            System.out.println("Cliente modificado : "+client.name);
                         }
                     }
                 }
                 List<DebtOfflineNewVersion> currentSalesOfDay = modeOffline.getSalesOfDay();
                 if (currentSalesOfDay != null) {
-
                     for (DebtOfflineNewVersion saleOfDay : currentSalesOfDay) {
-                        Sale saleEntity = viewModelStore.getAppDatabase().saleDao().getByFolio(saleOfDay.getFolio());
+                        Sale saleEntity = conexion.saleDao().getByFolio(saleOfDay.getFolio());
                         if (saleEntity == null) {
+                            System.out.println("Bajando nota: "+saleOfDay.getFolio());
                             Sale sale = new Sale();
                             sale.amount = saleOfDay.getAmount();
                             sale.statusStr = saleOfDay.getStatusStr();
@@ -372,12 +424,13 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
                             sale.clientId = saleOfDay.getClientId();
                             sale.status = saleOfDay.getStatus();
                             sale.cancelAutorized=saleOfDay.getCancelAutorized();
-                            viewModelStore.getAppDatabase().saleDao().insertAll(sale);
+                            conexion.saleDao().insertAll(sale);
                             for (SubSaleOfflineNewVersion subSaleOffline : saleOfDay.getProducts()) {
                                 SubSale subSale = new SubSale();
-                                if(subSaleOffline.getSubSaleAppId()!=null) {
+                                System.out.println("Creando subproducto: "+sale.folio+" - "+subSaleOffline.getProductId()+" "+subSaleOffline.getQuantity());
+                                /*if(subSaleOffline.getSubSaleAppId()!=null) {
                                     subSale.subSaleId = subSaleOffline.getSubSaleAppId();
-                                }
+                                }*/
                                 subSale.quantity = subSaleOffline.getQuantity();
                                 subSale.uniMed = subSaleOffline.getUniMed();
                                 subSale.weightStandar = subSaleOffline.getWeightStandar();
@@ -389,9 +442,36 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
                                 subSale.productId = subSaleOffline.getProductId();
                                 subSale.productKey = subSaleOffline.getProductKey();
                                 subSale.subSaleServerId = subSaleOffline.getSubSaleServerId();
-                                viewModelStore.getAppDatabase().subSalesDao().insertAllSubSales(subSale);
+                                conexion.subSalesDao().insertAllSubSales(subSale);
+                            }
+                            String[] dateForVisit = saleOfDay.getDate().split("T");
+                            if(dateForVisit.length>0){
+                                ClientVisit clientVisit = conexion.clientVisitDao().getClientVisitByIdAndDate(sale.clientId,dateForVisit[0]);
+                                if(clientVisit==null){
+                                    clientVisit = new ClientVisit();
+                                    clientVisit.visited=true;
+                                    clientVisit.clientId=saleOfDay.getClientId();
+                                    clientVisit.date=dateForVisit[0];
+                                    clientVisit.observations="";
+                                    clientVisit.amount=saleOfDay.getAmount();
+                                    clientVisit.sincronized=true;
+                                    conexion.clientVisitDao().insertClientVisit(clientVisit);
+                                }else{
+                                    clientVisit.amount+=saleOfDay.getAmount();
+                                    conexion.clientVisitDao().updateClientVisit(clientVisit);
+                                }
                             }
                         } else {
+                            String[] dates = saleOfDay.getDate().split("T");
+                            ClientVisit clientVisit = conexion.clientVisitDao().getClientVisitByIdAndDate(saleEntity.clientId,dates[0]);
+                            if(saleEntity.statusStr.equals("ACTIVE") && saleOfDay.getStatus().equals("CANCELED")){
+                                clientVisit.amount-=saleOfDay.getAmount();
+                                conexion.clientVisitDao().updateClientVisit(clientVisit);
+                            }else if(saleEntity.statusStr.equals("CANCELED") && saleOfDay.getStatusStr().equals("ACTIVE")){
+                                clientVisit.amount+=saleOfDay.getAmount();
+                                conexion.clientVisitDao().updateClientVisit(clientVisit);
+                            }
+                            System.out.println("Actualizando estatus");
                             saleEntity.amount = saleOfDay.getAmount();
                             saleEntity.statusStr = saleOfDay.getStatusStr();
                             saleEntity.status = saleOfDay.getStatus();
@@ -408,17 +488,19 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
                             saleEntity.date = saleOfDay.getDate();
                             saleEntity.clientId = saleOfDay.getClientId();
                             saleEntity.cancelAutorized=saleOfDay.getCancelAutorized();
-                            viewModelStore.getAppDatabase().saleDao().updateSale(saleEntity);
+                            conexion.saleDao().updateSale(saleEntity);
+
                         }
                     }
                 }
 
                 List<DebtOfflineNewVersion> debts = modeOffline.getDebts();
                 if (debts != null) {
-
+                    System.out.println("Obteniendo adeudos");
                 for (DebtOfflineNewVersion debt : debts) {
-                    Sale sale = viewModelStore.getAppDatabase().saleDao().getByFolio(debt.getFolio());
+                    Sale sale = conexion.saleDao().getByFolio(debt.getFolio());
                     if (sale == null) {
+                        System.out.println("Bajanda adeudo de nota: "+debt.getFolio());
                         Sale saleToSave = new Sale();
                         saleToSave.amount = debt.getAmount();
                         saleToSave.statusStr = debt.getStatusStr();
@@ -435,7 +517,7 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
                         saleToSave.date = debt.getDate();
                         saleToSave.clientId = debt.getClientId();
                         saleToSave.status = debt.getStatus();
-                        viewModelStore.getAppDatabase().saleDao().insertAll(saleToSave);
+                        conexion.saleDao().insertAll(saleToSave);
                         for (SubSaleOfflineNewVersion subSaleOffline : debt.getProducts()) {
                             SubSale subSale = new SubSale();
                             if(subSaleOffline.getSubSaleAppId()!=null) {
@@ -452,15 +534,16 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
                             subSale.productId = subSaleOffline.getProductId();
                             subSale.productKey = subSaleOffline.getProductKey();
                             subSale.subSaleServerId = subSaleOffline.getSubSaleServerId();
-                            viewModelStore.getAppDatabase().subSalesDao().insertAllSubSales(subSale);
+                            conexion.subSalesDao().insertAllSubSales(subSale);
                         }
                     }
                 }
             }
 
                 for(DevolutionResponseInitData devolutionRequest : modeOffline.getDevolutionsRequest()){
-                    DevolutionRequest devolutionRequest1 = viewModelStore.getAppDatabase().devolutionRequestDao().findDevolutionRequestByFolioRegister(devolutionRequest.getFolio());
+                    DevolutionRequest devolutionRequest1 = conexion.devolutionRequestDao().findDevolutionRequestByFolioRegister(devolutionRequest.getFolio());
                     if(devolutionRequest1==null){
+                        System.out.println("Bajando adeudo: "+devolutionRequest.getFolio());
                         DevolutionRequest devolutionRequest2 = new DevolutionRequest();
                         devolutionRequest2.status=devolutionRequest.getStatus();
                         devolutionRequest2.description=devolutionRequest.getObservations();
@@ -469,17 +552,19 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
                         devolutionRequest2.folio=devolutionRequest.getFolio();
                         devolutionRequest2.typeDevolution=devolutionRequest.getTypeDevolution();
                         devolutionRequest2.createAt=devolutionRequest.getCreateAt();
-                        viewModelStore.getAppDatabase().devolutionRequestDao().insertAll(devolutionRequest2);
+                        conexion.devolutionRequestDao().insertAll(devolutionRequest2);
                     }else{
+                        System.out.println("Actualizando estatus: "+devolutionRequest.getFolio());
                         devolutionRequest1.status=devolutionRequest.getStatus();
-                        viewModelStore.getAppDatabase().devolutionRequestDao().updateDevolutionRequest(devolutionRequest1);
+                        conexion.devolutionRequestDao().updateDevolutionRequest(devolutionRequest1);
                     }
                 }
                 for(DevolutionSubSalesResponseInitData devolutionSubSale : modeOffline.getDevolutionsSubSales()){
-                    DevolutionSubSale devolutionSubSale1 = viewModelStore.getAppDatabase().devolutionSubSaleDao().findDevolutionSubSaleBySubSaleId(devolutionSubSale.getSubSaleIdIdentifier());
+                    DevolutionSubSale devolutionSubSale1 = conexion.devolutionSubSaleDao().findDevolutionSubSaleBySubSaleId(devolutionSubSale.getSubSaleIdIdentifier());
                     if(devolutionSubSale1==null){
+                        System.out.println("Bajando devolución: "+devolutionSubSale.getSaleId());
                         DevolutionSubSale devolutionSubSale2=new DevolutionSubSale();
-                        SubSale subSale = viewModelStore.getAppDatabase().subSalesDao().getSubSaleBySubSaleId(devolutionSubSale.getSubSaleIdIdentifier());
+                        SubSale subSale = conexion.subSalesDao().getSubSaleBySubSaleId(devolutionSubSale.getSubSaleIdIdentifier());
                         devolutionSubSale2.quantity=devolutionSubSale.getQuantity();
                         devolutionSubSale2.weightStandar=subSale.weightStandar;
                         devolutionSubSale2.uniMed=subSale.uniMed;
@@ -491,7 +576,7 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
                         devolutionSubSale2.presentationId=devolutionSubSale.getPresentationId();
                         devolutionSubSale2.devolutionRequestId=devolutionSubSale.getDevolutionRequestId();
                         devolutionSubSale2.productPresentationType=subSale.productPresentationType;
-                        viewModelStore.getAppDatabase().devolutionSubSaleDao().insertAll(devolutionSubSale2);
+                        conexion.devolutionSubSaleDao().insertAll(devolutionSubSale2);
                     }
                 }
 
@@ -509,66 +594,12 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
 
     }
 
-
-    /*@RequiresApi(api = Build.VERSION_CODES.N)
-
-    public void setModeOfflineBackup(ModeOfflineModel modeOffline) {
-
-        String data = parser.toJson(modeOffline);
-        Calendar calendar = Calendar.getInstance();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-        String dateParsed = dateFormat.format(calendar.getTime());
-
-        try {
-
-            File root = new File(getContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "offline");
-            if (!root.exists()) {
-                root.mkdirs();
-            }
-            Boolean already = true;
-            File gpxfile=null;
-            int i=0;
-            while(already) {
-                gpxfile = new File(root, "offline-" + dateParsed + "-backup"+i+".rovi");
-                if(gpxfile.exists()){
-                    i++;
-                }else{
-                    already=false;
-                }
-            }
-
-            FileWriter writer = new FileWriter(gpxfile);
-            writer.append(data);
-            writer.flush();
-            writer.close();
-            this.sincronized=true;
-            viewModelStore.saveStore(new ModeOfflineModel());
-            download.setEnabled(true);
-            download.setColorFilter(Color.parseColor("#2FBF34"));
-            upload.setEnabled(false);
-            upload.setColorFilter(Color.GRAY);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-    }*/
-
     String currentDay="";
 
     @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         viewModelStore = new ViewModelProvider(requireActivity()).get(ViewModelStore.class);
-        /*if(checkOffline()){
-            this.setModeOffline(viewModelStore.getStore());
-            checkIfOffline();
-            ClientOfflineMode[] array = new ClientOfflineMode[viewModelStore.getStore().getClientsToVisit().size()];
-            viewModelStore.getStore().getClientsToVisit().toArray(array);
-            clientsVisits=array;
-
-        }*/
         Calendar calendar = Calendar.getInstance();
         int day = calendar.get(Calendar.DAY_OF_WEEK);
 
@@ -597,16 +628,14 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
         }
 
         this.setClientVisits(currentDay,"",false);
-        checkSalesUnSincronized(false,null);
+        dateSincronization=null;
+        actionActivated=false;
+        checkAllUnsincronized();
     }
 
 
     @RequiresApi(api = Build.VERSION_CODES.N)
     void search(){
-
-
-
-
             if(filtered==false) {
                 filtered = true;
                 this.buscarCliente.setText("Cancelar");
@@ -624,12 +653,7 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
                     this.buscarCliente.setText("Buscar");
                 }
             }
-
                 setClientVisits(currentDay,this.currentHint,filtered);
-
-
-
-
     }
 
     @Override
@@ -645,6 +669,9 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
 
     void goToHistory(){
         this.navController.navigate(VisitsViewDirections.actionVisitsViewToSalesView(this.userName).setUserName(this.userName).setClientInVisit(clientInVisit).setPrinterDevice(bluetoothDeviceSerializable));
+    }
+    void goToVisitMap(){
+        this.navController.navigate(VisitsViewDirections.actionVisitsViewToVisitsMapView(this.userName).setClientInVisit(clientInVisit).setPrinterDevice(bluetoothDeviceSerializable));
     }
 
     void logout(){
@@ -679,28 +706,35 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
                 search();
                 break;
             case R.id.downloadChanges:
-
+                if(!isLoading) {
+                    setUploadingStatus(true);
+                    LocalDateTime ldt = LocalDateTime.now();
+                    DateTimeFormatter formmat1 = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+                    System.out.println("FECHA_DE_HOY: " + ldt);
+                    String dateParsed = formmat1.format(ldt);
+                    presenter.getDataInitial(viewModelStore.getStore().getSellerId(), dateParsed);
+                    modalSincronizationStart("Bajando cambios");
+                }
+                break;
+            case R.id.uploadChanges:
                     if(!isLoading) {
-                        isLoading=true;
-                        circularProgressIndicator.setVisibility(View.VISIBLE);
-                        LocalDateTime ldt = LocalDateTime.now();
-                        DateTimeFormatter formmat1 = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-                        System.out.println("FECHA_DE_HOY: "+ldt);
-                        String dateParsed = formmat1.format(ldt);
-                        presenter.getDataInitial(viewModelStore.getStore().getSellerId(),dateParsed);
-                        modalSincronizationStart();
+
+                        Calendar calendar = Calendar.getInstance();
+                        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+                        dateSincronization = dateFormat.format(calendar.getTime());
+                        actionActivated = true;
+                        //checkSalesUnSincronized();
+                        firstStep();
                     }
 
                 break;
-            case R.id.uploadChanges:
-                if(!isLoading){
-                    isLoading=true;
-                    circularProgressIndicator.setVisibility(View.VISIBLE);
-                    checkSalesUnSincronized(true,null);
-                }
+            case R.id.resincronize:
+
+                    resinconizeMethod();
+
                 break;
-            case R.id.resincronizeButton:
-                resinconizeMethod();
+            case R.id.goToVisitMap:
+                goToVisitMap();
                 break;
         }
     }
@@ -750,102 +784,24 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
                 if(dayOfMonth<10) day="0"+day;
                 String dateSelected = year+"-"+monthStr+"-"+day;
                 if(action==1){
-                    isLoading=true;
-                    circularProgressIndicator.setVisibility(View.VISIBLE);
-                    modalSincronizationStart();
+                    setUploadingStatus(true);
+                    modalSincronizationStart("Sincronizando");
                     presenter.getDataInitial(viewModelStore.getStore().getSellerId(),dateSelected);
                 }else if(action==2){
-                    isLoading=true;
-                    circularProgressIndicator.setVisibility(View.VISIBLE);
-                    checkSalesUnSincronized(true,dateSelected);
+                    dateSincronization=dateSelected;
+                    actionActivated=true;
+                    checkSalesUnSincronized();
                 }
             }
         });
 
         newFragment.show(getActivity().getSupportFragmentManager(),"datePicker");
     }
-/*
-    @RequiresApi(api = Build.VERSION_CODES.N)
-    ModeOfflineSincronize generateModeOfflineRequest(){
-        ModeOfflineSincronize modeOfflineSincronize= new ModeOfflineSincronize();
 
-        if(viewModelStore.getStore().getSalesMaked()!=null) {
-            modeOfflineSincronize.setSalesMaked(viewModelStore.getStore().getSalesMaked().stream().map(sale -> {
-                ModeOfflineSM modeOfflineSM = new ModeOfflineSM();
-                modeOfflineSM.setAmount(sale.getAmount());
-                modeOfflineSM.setClientId(sale.getClientId());
-                modeOfflineSM.setCredit(sale.getCredit());
-                modeOfflineSM.setDate(sale.getDate());
-                modeOfflineSM.setFolio(sale.getFolio());
-                modeOfflineSM.setPayedWith(sale.getPayed());
-                modeOfflineSM.setSellerId(sale.getSellerId());
-                modeOfflineSM.setStatus(sale.getStatus());
-                modeOfflineSM.setStatusStr(sale.getStatusStr());
-                modeOfflineSM.setTypeSale(sale.getTypeSale());
-                modeOfflineSM.setProducts(
-                        sale.getProducts().stream().map(prod -> {
-                            ModeOfflineSMP modeOfflineSMP = new ModeOfflineSMP();
-                            modeOfflineSMP.setAmount(prod.getPrice() * prod.getQuantity());
-                            modeOfflineSMP.setPresentationId(prod.getPresentationId());
-                            modeOfflineSMP.setProductId(prod.getProductId());
-                            modeOfflineSMP.setQuantity(prod.getQuantity());
-                            return modeOfflineSMP;
-                        }).collect(Collectors.toList())
-                );
-                return modeOfflineSM;
-            }).collect(Collectors.toList()));
-        }else{
-            modeOfflineSincronize.setSalesMaked(new ArrayList<>());
-        }
-        if(viewModelStore.getStore().getSales()!=null) {
-            modeOfflineSincronize.setSales(
-                    viewModelStore.getStore().getSales().stream().map(sale->{
-                        ModeOfflineS modeOfflineS = new ModeOfflineS();
-                        modeOfflineS.setDate(sale.getDate());
-                        modeOfflineS.setFolio(sale.getFolio());
-                        modeOfflineS.setSaleId(sale.getSaleId());
-                        modeOfflineS.setStatus(sale.getStatus());
-                        modeOfflineS.setStatusStr(sale.getStatusStr());
-                        return modeOfflineS;
-                    }).collect(Collectors.toList())
-            );
-        }else{
-            modeOfflineSincronize.setSales(new ArrayList<>());
-        }
-
-        if(viewModelStore.getStore().getDebts()!=null){
-            modeOfflineSincronize.setDebts(
-                    viewModelStore.getStore().getDebts().stream().map(deb->{
-                        ModeOfflineDebts modeOfflineDebts = new ModeOfflineDebts();
-                        modeOfflineDebts.setDate(deb.getDate());
-                        modeOfflineDebts.setFolio(deb.getFolio());
-                        modeOfflineDebts.setSaleId(deb.getSaleId());
-                        modeOfflineDebts.setTypeSale(deb.getTypeSale());
-                        modeOfflineDebts.setStatus(deb.getStatus());
-                        return modeOfflineDebts;
-                    }).collect(Collectors.toList())
-            );
-        }else{
-            modeOfflineSincronize.setDebts(new ArrayList<>());
-        }
-
-        return modeOfflineSincronize;
-    }*/
 
     @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     public void sincronizeComplete() {
-
-        //setModeOfflineBackup(viewModelStore.getStore());
-        /*Calendar calendar = Calendar.getInstance();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-        String dateParsed = dateFormat.format(calendar.getTime());
-        File root = new File(getContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "offline");
-        if (!root.exists()) {
-            root.mkdirs();
-        }
-        File gpxfile = new File(root, "offline-"+dateParsed+".rovi");
-        gpxfile.delete();*/
         isLoading=false;
         circularProgressIndicator.setVisibility(View.GONE);
     }
@@ -872,9 +828,10 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
             executor.execute(new Runnable() {
                 @Override
                 public void run() {
+                    AppDatabase conexion = AppDatabase.getInstance(getContext());
                     List<Client> clientsToVisit=new ArrayList<>();
                     if(dayStr.equals("monday")){
-                        List<Client> clients = viewModelStore.getAppDatabase().clientDao().getClientsMonday(viewModelStore.getStore().getSellerId());
+                        List<Client> clients = conexion.clientDao().getClientsMonday(viewModelStore.getStore().getSellerId());
                         for(Client client :clients){
                             if(filter){
                                 if(client.name.contains(hint) || String.valueOf(client.clientKey).contains(hint)){
@@ -886,7 +843,7 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
 
                         }
                     }else if(dayStr.equals("tuesday")){
-                        List<Client> clients = viewModelStore.getAppDatabase().clientDao().getClientsTuesday(viewModelStore.getStore().getSellerId());
+                        List<Client> clients = conexion.clientDao().getClientsTuesday(viewModelStore.getStore().getSellerId());
                         for(Client client :clients){
                             if(filter){
                                 if(client.name.contains(hint) || String.valueOf(client.clientKey).contains(hint)){
@@ -898,7 +855,7 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
 
                         }
                     }else if(dayStr.equals("wednesday")){
-                        List<Client> clients = viewModelStore.getAppDatabase().clientDao().getClientsWednesday(viewModelStore.getStore().getSellerId());
+                        List<Client> clients = conexion.clientDao().getClientsWednesday(viewModelStore.getStore().getSellerId());
                         for(Client client :clients){
                             if(filter){
                                 if(client.name.contains(hint) || String.valueOf(client.clientKey).contains(hint)){
@@ -909,7 +866,7 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
                             }
                         }
                     }else if(dayStr.equals("thursday")) {
-                        List<Client> clients = viewModelStore.getAppDatabase().clientDao().getClientsThursday(viewModelStore.getStore().getSellerId());
+                        List<Client> clients = conexion.clientDao().getClientsThursday(viewModelStore.getStore().getSellerId());
                         for(Client client :clients){
                             if(filter){
                                 if(client.name.contains(hint) || String.valueOf(client.clientKey).contains(hint)){
@@ -920,7 +877,7 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
                             }
                         }
                     }else if(dayStr.equals("friday")){
-                        List<Client> clients = viewModelStore.getAppDatabase().clientDao().getClientsFriday(viewModelStore.getStore().getSellerId());
+                        List<Client> clients = conexion.clientDao().getClientsFriday(viewModelStore.getStore().getSellerId());
                         for(Client client :clients){
                             if(filter){
                                 if(client.name.contains(hint) || String.valueOf(client.clientKey).contains(hint)){
@@ -931,7 +888,7 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
                             }
                         }
                     }else if(dayStr.equals("saturday")){
-                        List<Client> clients = viewModelStore.getAppDatabase().clientDao().getClientsSaturday(viewModelStore.getStore().getSellerId());
+                        List<Client> clients = conexion.clientDao().getClientsSaturday(viewModelStore.getStore().getSellerId());
                         for(Client client :clients){
                             if(filter){
                                 if(client.name.contains(hint) || String.valueOf(client.clientKey).contains(hint)){
@@ -942,7 +899,7 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
                             }
                         }
                     }else{
-                        List<Client> clients = viewModelStore.getAppDatabase().clientDao().getClientsSunday(viewModelStore.getStore().getSellerId());
+                        List<Client> clients = conexion.clientDao().getClientsSunday(viewModelStore.getStore().getSellerId());
                         for(Client client :clients){
                             if(filter){
                                 if(client.name.contains(hint) || String.valueOf(client.clientKey).contains(hint)){
@@ -1019,7 +976,7 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
                 .setMessage(msg).setPositiveButton("Aceptar", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        reloadVisits();
+                        //reloadVisits();
                     }
                 }).setCancelable(false).create();
         dialog.show();
@@ -1032,44 +989,268 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
 
     AlertDialog dialogSinc=null;
     @Override
-    public void modalSincronizationStart(){
+    public void modalSincronizationStart(String msg){
         LayoutInflater inflater = LayoutInflater.from(getContext());
         View view = inflater.inflate(R.layout.dialog_load_message,null);
         TextView messageLoad = view.findViewById(R.id.message_load);
-        messageLoad.setText("Sincronizando...");
+        messageLoad.setText(msg);
         AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
         builder.setView(view);
         builder.setCancelable(false);
         this.dialogSinc=builder.create();
         this.dialogSinc.show();
     }
-    @RequiresApi(api = Build.VERSION_CODES.N)
+
+
+
     @Override
+    public void modalMessageOperation(String msg){
+        LayoutInflater inflater = LayoutInflater.from(getContext());
+        View view = inflater.inflate(R.layout.modal_success_operation,null);
+        TextView messageLoad = view.findViewById(R.id.message_load);
+        Button btnAccept = view.findViewById(R.id.acceptButtonModal);
+        messageLoad.setText(msg);
+        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+        builder.setView(view);
+        builder.setCancelable(false);
+        AlertDialog modalInfo= builder.create();
+        modalInfo.show();
+        btnAccept.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                modalInfo.dismiss();
+            }
+        });
+    }
+
+
     public void modalSincronizationEnd(){
         if(this.dialogSinc!=null && this.dialogSinc.isShowing()){
             this.dialogSinc.dismiss();
         }
-        setClientVisits(currentDay,"",false);
     }
-
-    void checkSalesUnSincronized(Boolean action,String date){
+    /** registering clients unsincronized */
+    @Override
+    public void firstStep(){
+        modalSincronizationStart("Subiendo cambios");
+        setUploadingStatus(true);
         executor.execute(new Runnable() {
             @Override
             public void run() {
+                AppDatabase conexion = AppDatabase.getInstance(getContext());
+                List<Client> clientsUnsincronized =conexion.clientDao().getAllClientsUnsicronized();
+                List<ClientV2Request> requestRegister = new ArrayList<>();
+                for(Client client : clientsUnsincronized) {
+                    if (client.clientRovId==null || client.clientRovId==0) {
+                        ClientV2Request clientV2Request = new ClientV2Request();
+                        clientV2Request.setClientCp(client.cp);
+                        clientV2Request.setClientName(client.name);
+                        clientV2Request.setClientMobileId(client.clientMobileId);
+                        clientV2Request.setClientType(client.type);
+                        clientV2Request.setClientStreet(client.street);
+                        clientV2Request.setClientSuburb(client.suburb);
+                        clientV2Request.setClientMunicipality(client.municipality);
+                        clientV2Request.setClientExtNumber(client.noExterior);
+                        clientV2Request.setClientSellerUid(client.uid);
+                        if (client.latitude != null) {
+                            clientV2Request.setLatitude(client.latitude);
+                        }
+                        if (client.longitude != null) {
+                            clientV2Request.setLongitude(client.longitude);
+                        }
+                        clientV2Request.setMonday(client.monday);
+                        clientV2Request.setTuesday(client.tuesday);
+                        clientV2Request.setWednesday(client.wednesday);
+                        clientV2Request.setThursday(client.thursday);
+                        clientV2Request.setFriday(client.friday);
+                        clientV2Request.setSaturday(client.saturday);
+                        requestRegister.add(clientV2Request);
+                    }
+                }
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        presenter.tryRegisterClients(requestRegister);
+                    }
+                });
+            }
+        });
+    }
+    /** updating clients registered to database*/
+    @Override
+    public void setClientsRegisters(List<ClientV2Response> clientsRegistered) {
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                AppDatabase conexion = AppDatabase.getInstance(getContext());
+                for(ClientV2Response clientReg : clientsRegistered){
+                    Client client = conexion.clientDao().getClientByClientIdMobile(clientReg.getClientMobileId());
+                    client.clientRovId=clientReg.getClientId();
+                    client.sincronized=true;
+                    conexion.clientDao().updateClient(client);
+                    ClientVisit clientVisit = conexion.clientVisitDao().getClientVisitByIdAndDate(clientReg.getClientMobileId(),dateSincronization);
+                    clientVisit.clientId=clientReg.getClientId();
+                    conexion.clientVisitDao().updateClientVisit(clientVisit);
+                    List<Sale> salesTemp = conexion.saleDao().getAllSalesByDateAndClientId(dateSincronization+"T00:00:00.000Z",dateSincronization+"T23:59:59.000Z",clientReg.getClientMobileId());
+                    for(Sale sale : salesTemp){
+                        sale.isTempKeyClient=false;
+                        sale.keyClient=client.clientRovId;
+                        sale.clientId=client.clientRovId;
+                        conexion.saleDao().updateSale(sale);
+                    }
+                }
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        secondStep();
+                    }
+                });
+            }
+        });
+    }
+
+    /** updating clients unsincronized */
+    @Override
+    public void secondStep(){
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                AppDatabase conexion = AppDatabase.getInstance(getContext());
+                List<Client> clientsUnsincronized =conexion.clientDao().getAllClientsUnsicronized();
+                List<ClientV2UpdateRequest> clientV2UpdateRequestList = new ArrayList<>();
+                for(Client client : clientsUnsincronized) {
+                    System.out.println("ClientSincronized: "+client.sincronized);
+                    System.out.println("ClientRovId: "+client.clientRovId);
+                    if (client.sincronized==false && client.clientRovId!=null) {
+                        ClientV2UpdateRequest clientV2UpdateRequest = new ClientV2UpdateRequest();
+                        clientV2UpdateRequest.setClientId(client.clientRovId);
+                        clientV2UpdateRequest.setClientKey(client.clientKey);
+                        clientV2UpdateRequest.setClientCp(client.cp);
+                        clientV2UpdateRequest.setClientName(client.name);
+                        clientV2UpdateRequest.setClientStreet(client.street);
+                        clientV2UpdateRequest.setClientSuburb(client.suburb);
+                        clientV2UpdateRequest.setClientMunicipality(client.municipality);
+                        if (client.noExterior != null) {
+                            clientV2UpdateRequest.setClientExtNumber(client.noExterior);
+                        }
+                        clientV2UpdateRequest.setMonday(client.monday);
+                        clientV2UpdateRequest.setTuesday(client.tuesday);
+                        clientV2UpdateRequest.setWednesday(client.wednesday);
+                        clientV2UpdateRequest.setThursday(client.thursday);
+                        clientV2UpdateRequest.setFriday(client.friday);
+                        clientV2UpdateRequest.setSaturday(client.saturday);
+                        if (client.latitude != null) {
+                            clientV2UpdateRequest.setLatitude(client.latitude);
+                        }
+                        if (client.longitude != null) {
+                            clientV2UpdateRequest.setLongitude(client.longitude);
+                        }
+                        clientV2UpdateRequestList.add(clientV2UpdateRequest);
+                    }
+                }
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        presenter.updateCustomerV2(clientV2UpdateRequestList);
+                    }
+                });
+            }
+        });
+    }
+    /** Updating clients updated to database*/
+    @Override
+    public void setClientsUpdated(List<ClientV2UpdateResponse> clientsUpdated) {
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                AppDatabase conexion = AppDatabase.getInstance(getContext());
+                for(ClientV2UpdateResponse clientReg : clientsUpdated){
+                    Client client = conexion.clientDao().getClientBydId(clientReg.getClientId());
+                    if(client!=null) {
+                        client.sincronized = true;
+                        conexion.clientDao().updateClient(client);
+                    }
+                }
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        thirdStep();
+                    }
+                });
+            }
+        });
+    }
+
+    /** Registering clients visits to server */
+    @Override
+    public void thirdStep(){
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                AppDatabase conexion = AppDatabase.getInstance(getContext());
+                List<ClientVisit> visits = conexion.clientVisitDao().getClientVisitByDateUnsincronized(dateSincronization);
+                List<ClientV2VisitRequest> requests = new ArrayList<>();
+                for(ClientVisit clientVisit : visits){
+                    ClientV2VisitRequest request = new ClientV2VisitRequest();
+                    request.setVisited(clientVisit.visited);
+                    request.setDate(clientVisit.date);
+                    request.setAmount(clientVisit.amount);
+                    request.setObservations(clientVisit.observations);
+                    request.setClientId(clientVisit.clientId);
+                    requests.add(request);
+                }
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        presenter.registerVisitsV2(requests);
+                    }
+                });
+            }
+        });
+    }
+    /** Updating clients visits in database */
+    @Override
+    public void setClientVisitedRegistered(List<ClientV2VisitResponse> clientV2Visit) {
+        System.out.println("Actualizando estatus de visitas");
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                AppDatabase conexion = AppDatabase.getInstance(getContext());
+                for(ClientV2VisitResponse response : clientV2Visit){
+                    ClientVisit clientVisit = conexion.clientVisitDao().getClientVisitByIdAndDate(response.getClientId(),response.getDate());
+                    clientVisit.sincronized=true;
+                    conexion.clientVisitDao().updateClientVisit(clientVisit);
+                }
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        System.out.println("Iniciando proceso de ventas");
+                        checkSalesUnSincronized();
+                    }
+                });
+            }
+        });
+    }
+    @Override
+    public void checkSalesUnSincronized(){
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                AppDatabase conexion = AppDatabase.getInstance(getContext());
                 List<Sale> sales=new ArrayList<>();
-                if(date==null) {
-                    sales = viewModelStore.getAppDatabase().saleDao().getAllSalesUnsincronized();
+                if(dateSincronization==null) {
+                    sales = conexion.saleDao().getAllSalesUnsincronizedBySeller(viewModelStore.getStore().getSellerId());
                 }else{
-                    String date1=date+"T00:00:00.000Z";
-                    String date2=date+"T23:59:59.000Z";
-                    sales = viewModelStore.getAppDatabase().saleDao().getAllSalesUnsincronizedByDate(date1,date2);
+                    String date1=dateSincronization+"T00:00:00.000Z";
+                    String date2=dateSincronization+"T23:59:59.000Z";
+                    sales = conexion.saleDao().getAllSalesUnsincronizedByDate(date1,date2);
                 }
                 List<ModeOfflineSM> modeOfflineSMS = new ArrayList<>();
                 for(Sale sale : sales) {
-                    System.out.println("Sale without sincronization: "+sale.folio);
+                    System.out.println("Venta sin sincronizacion: "+sale.folio);
                     System.out.println("status: "+sale.statusStr);
-                    System.out.println("modified: "+sale.modified);
-                    System.out.println("sincronized: "+sale.sincronized);
+                    System.out.println("modificado: "+sale.modified);
+                    System.out.println("sincronizado: "+sale.sincronized);
                     ModeOfflineSM modeOfflineSM = new ModeOfflineSM();
                     modeOfflineSM.setAmount(sale.amount);
                     modeOfflineSM.setClientId(sale.clientId);
@@ -1081,7 +1262,7 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
                     modeOfflineSM.setStatus(sale.status);
                     modeOfflineSM.setStatusStr(sale.statusStr);
                     modeOfflineSM.setTypeSale(sale.typeSale);
-                    List<SubSale> subSales = viewModelStore.getAppDatabase().subSalesDao().getSubSalesBySale(sale.folio);
+                    List<SubSale> subSales = conexion.subSalesDao().getSubSalesBySale(sale.folio);
                     List<ModeOfflineSMP> modeOfflineSMPS = new ArrayList<>();
                     for(SubSale subSale : subSales){
                         ModeOfflineSMP modeOfflineSMP = new ModeOfflineSMP();
@@ -1095,10 +1276,10 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
                     modeOfflineSMS.add(modeOfflineSM);
                 }
                 List<DevolutionRequest> devolutionsRequests;
-                if(date==null) {
-                    devolutionsRequests = viewModelStore.getAppDatabase().devolutionRequestDao().getAllUnsincronized();
+                if(dateSincronization==null) {
+                    devolutionsRequests = conexion.devolutionRequestDao().getAllUnsincronized();
                 }else{
-                    devolutionsRequests = viewModelStore.getAppDatabase().devolutionRequestDao().getAllBetweenDateRegisters(date+"T00:00:00.000Z",date+"T23:59:59.000Z");
+                    devolutionsRequests = conexion.devolutionRequestDao().getAllBetweenDateRegisters(dateSincronization+"T00:00:00.000Z",dateSincronization+"T23:59:59.000Z");
                 }
                 List<DevolutionRequestServer> devolutionRequestServers=new ArrayList<>();
                 for(DevolutionRequest devolutionRequest :devolutionsRequests){
@@ -1110,7 +1291,7 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
                     devolutionRequestServer.setTypeDevolution(devolutionRequest.typeDevolution);
                     List<DevolutionSubSaleRequestServer> devolutionSubSaleRequestServersModified = new ArrayList<>();
                     List<DevolutionSubSaleRequestServer> devolutionSubSaleRequestServersOriginal = new ArrayList<>();
-                    List<DevolutionSubSale> devolutionSubSales = viewModelStore.getAppDatabase().devolutionSubSaleDao().findByDevolutionRequestId(devolutionRequest.devolutionRequestId);
+                    List<DevolutionSubSale> devolutionSubSales = conexion.devolutionSubSaleDao().findByDevolutionRequestId(devolutionRequest.devolutionRequestId);
                     for(DevolutionSubSale devolutionSubSale : devolutionSubSales){
                         DevolutionSubSaleRequestServer devolutionSubSaleRequestServer = new DevolutionSubSaleRequestServer();
                         devolutionSubSaleRequestServer.setAmount(devolutionSubSale.price);
@@ -1122,7 +1303,7 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
                         devolutionSubSaleRequestServer.setQuantity(devolutionSubSale.quantity);
                         devolutionSubSaleRequestServersModified.add(devolutionSubSaleRequestServer);
                     }
-                    List<SubSale> subSales = viewModelStore.getAppDatabase().subSalesDao().getSubSalesBySale(devolutionRequest.folio);
+                    List<SubSale> subSales = conexion.subSalesDao().getSubSalesBySale(devolutionRequest.folio);
                     for(SubSale subSale : subSales){
                         DevolutionSubSaleRequestServer devolutionSubSaleRequestServer = new DevolutionSubSaleRequestServer();
                         devolutionSubSaleRequestServer.setAmount(subSale.price);
@@ -1138,12 +1319,12 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
                     devolutionRequestServer.setProductsOld(devolutionSubSaleRequestServersOriginal);
                     devolutionRequestServers.add(devolutionRequestServer);
                 }
-                List<Debt> debts = viewModelStore.getAppDatabase().debtDao().getAllSalesWithoutSincronization();
+                List<Debt> debts = conexion.debtDao().getAllDebsWithoutSincronization();
                 List<DebPayedRequest> debtsPayed = new ArrayList<>();
                 for(Debt debt : debts){
                     if(debt.sincronized==false && debt.deleted==false){
                         DebPayedRequest debPayedRequest = new DebPayedRequest();
-                        Sale sale = viewModelStore.getAppDatabase().saleDao().getByFolio(debt.folio);
+                        Sale sale = conexion.saleDao().getByFolio(debt.folio);
                         debPayedRequest.setAmountPayed(sale.amount);
                         debPayedRequest.setDatePayed(debt.createAt);
                         debPayedRequest.setFolio(sale.folio);
@@ -1152,25 +1333,17 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
                     }
                 }
                 handler.post(new Runnable() {
+                    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
                     @Override
                     public void run() {
+                        System.out.println("Sincronizando notas");
                         if(modeOfflineSMS.size()>0 || debtsPayed.size()>0) {
-                            if(action) {
-                                showNotificationSincronization("Sistema de sincronización,Sincronizando...");
-                                presenter.sincronizeSales(modeOfflineSMS,debtsPayed,devolutionRequestServers,viewModelStore.getStore().getSellerId());
-                            }else{
-                                download.setEnabled(false);
-                                download.setColorFilter(Color.GRAY);
-                                upload.setEnabled(true);
-                                upload.setColorFilter(Color.parseColor("#2FBF34"));
-                                showNotificationSincronization("Hay ventas sin sincronizar...");
-                            }
+                            presenter.sincronizeSales(modeOfflineSMS,debtsPayed,devolutionRequestServers,viewModelStore.getStore().getSellerId());
                         }else{
-                            download.setEnabled(true);
-                            download.setColorFilter(Color.parseColor("#2FBF34"));
-                            upload.setColorFilter(Color.GRAY);
-                            upload.setEnabled(false);
-                            showNotificationSincronization("Sistema de sincronización,Nada por sincronizar...");
+                            setUploadingStatus(false);
+                            modalSincronizationEnd();
+                            modalMessageOperation("Sincronización exitosa");
+                            checkAllUnsincronized();
                         }
                     }
                 });
@@ -1178,49 +1351,158 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
         });
     }
 
+    void checkAllSaleCreditsPayed(){
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                AppDatabase conexion = AppDatabase.getInstance(getContext());
+                List<Sale> sales = conexion.saleDao().getAllDebts();
+                List<String> folios = new ArrayList<>();
+                for(Sale sale : sales){
+                    folios.add(sale.folio);
+                }
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        presenter.checkSalesCredit(folios);
+                    }
+                });
+            }
+        });
+    }
+
+    @Override
+    public void setAllSalesCreditPaymentStatus(List<SaleCreditPayedResponse> payments){
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                AppDatabase conexion = AppDatabase.getInstance(getContext());
+                for(SaleCreditPayedResponse item : payments){
+                    Sale sale = conexion.saleDao().getByFolio(item.getFolio());
+                    if(item.isPayed() && sale.status==true){
+                        sale.status=false;
+                        conexion.saleDao().updateSale(sale);
+                    }
+                }
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        setWithoutChangesToUpload();
+                        modalSincronizationEnd();
+                        modalMessageOperation("Sincronización exitosa");
+                    }
+                });
+            }
+        });
+    }
+
+    void checkAllUnsincronized(){
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                AppDatabase conexion = AppDatabase.getInstance(getContext());
+                List<Client> clientsUnsincronized = conexion.clientDao().getAllClientsUnsicronized();
+                List<ClientVisit> clientVisitsUnsincronized = conexion.clientVisitDao().getClientVisitUnsincronized();
+                List<Sale> sales=conexion.saleDao().getAllSalesUnsincronizedBySeller(viewModelStore.getStore().getSellerId());
+                List<DevolutionRequest> devolutionsRequests = conexion.devolutionRequestDao().getAllUnsincronized();
+                List<Debt> debts = conexion.debtDao().getAllDebsWithoutSincronization();
+                List<DebPayedRequest> debtsPayed = new ArrayList<>();
+                for(Debt debt : debts){
+                    if(debt.sincronized==false && debt.deleted==false){
+                        DebPayedRequest debPayedRequest = new DebPayedRequest();
+                        Sale sale = conexion.saleDao().getByFolio(debt.folio);
+                        debPayedRequest.setAmountPayed(sale.amount);
+                        debPayedRequest.setDatePayed(debt.createAt);
+                        debPayedRequest.setFolio(sale.folio);
+                        debPayedRequest.setPayedType(debt.payedType);
+                        debtsPayed.add(debPayedRequest);
+                    }
+                }
+                handler.post(new Runnable() {
+                    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+                    @Override
+                    public void run() {
+                        if(clientsUnsincronized.size()>0 || clientVisitsUnsincronized.size()>0 || sales.size()>0 || devolutionsRequests.size()>0 || debtsPayed.size()>0) {
+                            setWithChangesToUpload();
+                        }else{
+                            //setWithChangesToUpload();
+                            setWithoutChangesToUpload();
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    private void setWithoutChangesToUpload(){
+        download.setEnabled(true);
+        download.setColorFilter(Color.parseColor("#2FBF34"));
+        upload.setColorFilter(Color.GRAY);
+        upload.setEnabled(false);
+        showNotificationSincronization("Sistema de sincronización, Nada por sincronizar...");
+    }
+
+    private void setWithChangesToUpload(){
+        download.setEnabled(false);
+        download.setColorFilter(Color.GRAY);
+        upload.setColorFilter(Color.parseColor("#2FBF34"));
+        upload.setEnabled(true);
+        showNotificationSincronization("Hay cambios por sincronizar....");
+    }
+
+    @Override
+    public void setUploadingStatus(boolean flag){
+        System.out.println("Flag: "+flag);
+
+        if(flag){
+            circularProgressIndicator.setVisibility(View.VISIBLE);
+            isLoading=true;
+            upload.setEnabled(false);
+            download.setEnabled(false);
+        }else{
+            circularProgressIndicator.setVisibility(View.GONE);
+            isLoading=false;
+            upload.setEnabled(true);
+            download.setEnabled(true);
+        }
+    }
+
     @Override
     public void completeSincronzation(SincronizationResponse sincronizationResponse) {
         executor.execute(new Runnable() {
             @Override
             public void run() {
-
+                AppDatabase conexion = AppDatabase.getInstance(getContext());
                 for(int i=0;i<sincronizationResponse.getSalesSincronized().size();i++){
-                    viewModelStore.getAppDatabase().saleDao().updateSaleId(sincronizationResponse.getSalesSincronized().get(i).getSaleId(),sincronizationResponse.getSalesSincronized().get(i).getFolio());
+                    conexion.saleDao().updateSaleId(sincronizationResponse.getSalesSincronized().get(i).getSaleId(),sincronizationResponse.getSalesSincronized().get(i).getFolio());
                 }
                 for(String folio  : sincronizationResponse.getDebtsSicronized()){
-                    Debt debt = viewModelStore.getAppDatabase().debtDao().getDebtByFolio(folio);
+                    Debt debt = conexion.debtDao().getDebtByFolio(folio);
                     debt.sincronized=true;
-                    viewModelStore.getAppDatabase().debtDao().updateDebtSincronization(debt);
+                    conexion.debtDao().updateDebtSincronization(debt);
                 }
                 for(String folio : sincronizationResponse.getDevolutionsSincronized()){
-                    DevolutionRequest devolutionRequest = viewModelStore.getAppDatabase().devolutionRequestDao().findDevolutionRequestByFolioRegister(folio);
+                    DevolutionRequest devolutionRequest = conexion.devolutionRequestDao().findDevolutionRequestByFolioRegister(folio);
                     if(devolutionRequest!=null) {
                         devolutionRequest.sincronized = 1;
-                        viewModelStore.getAppDatabase().devolutionRequestDao().updateDevolutionRequest(devolutionRequest);
+                        conexion.devolutionRequestDao().updateDevolutionRequest(devolutionRequest);
                     }
                 }
 
                 for(String folio : sincronizationResponse.getDevolutionsAccepted()){
-                    DevolutionRequest devolutionRequest = viewModelStore.getAppDatabase().devolutionRequestDao().findDevolutionRequestByFolioRegister(folio);
+                    DevolutionRequest devolutionRequest = conexion.devolutionRequestDao().findDevolutionRequestByFolioRegister(folio);
                     devolutionRequest.status="ACCEPTED";
-                    viewModelStore.getAppDatabase().devolutionRequestDao().updateDevolutionRequest(devolutionRequest);
+                    conexion.devolutionRequestDao().updateDevolutionRequest(devolutionRequest);
                 }
                 for(String folio : sincronizationResponse.getDevolutionsRejected()){
-                    DevolutionRequest devolutionRequest = viewModelStore.getAppDatabase().devolutionRequestDao().findDevolutionRequestByFolioRegister(folio);
+                    DevolutionRequest devolutionRequest = conexion.devolutionRequestDao().findDevolutionRequestByFolioRegister(folio);
                     devolutionRequest.status="DECLINED";
-                    viewModelStore.getAppDatabase().devolutionRequestDao().updateDevolutionRequest(devolutionRequest);
+                    conexion.devolutionRequestDao().updateDevolutionRequest(devolutionRequest);
                 }
                 handler.post(new Runnable() {
                     @Override
                     public void run() {
-                        isLoading=false;
-                        circularProgressIndicator.setVisibility(View.GONE);
-                        System.out.println("Sincronized Complete");
-                        download.setEnabled(true);
-                        download.setColorFilter(Color.parseColor("#2FBF34"));
-                        upload.setColorFilter(Color.GRAY);
-                        upload.setEnabled(false);
-                        showNotificationSincronization("Sistema de sincronización,Nada por sincronizar...");
+                        checkAllSaleCreditsPayed();
                     }
                 });
             }
@@ -1244,5 +1526,6 @@ public class VisitsView extends Fragment implements View.OnClickListener, Visits
         NotificationManagerCompat notificationManager = NotificationManagerCompat.from(getContext());
         notificationManager.cancel(1);
     }
+
 
 }

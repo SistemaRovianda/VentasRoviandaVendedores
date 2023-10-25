@@ -1,12 +1,16 @@
 package com.example.ventasrovianda.Utils;
 
+import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.os.Handler;
 import android.util.Log;
 import android.widget.Toast;
+
+import androidx.core.app.ActivityCompat;
 
 import com.dantsu.escposprinter.EscPosPrinter;
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection;
@@ -28,19 +32,22 @@ import java.util.UUID;
 
 public class PrinterUtil {
 
-    BluetoothDevice bluetoothDevice=null;
+    BluetoothDevice bluetoothDevice = null;
     BluetoothSocket socket;
     OutputStream outputStream;
     InputStream inputStream;
 
     BluetoothAdapter bluetoothAdapter;
     Context context;
-    public PrinterUtil(Context context){
-        this.context=context;
+
+    public PrinterUtil(Context context) {
+        this.context = context;
     }
-    public Set<BluetoothDevice> findDevices(){
+
+    public Set<BluetoothDevice> findDevices() {
 
         this.bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+
         Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
         return pairedDevices;
     }

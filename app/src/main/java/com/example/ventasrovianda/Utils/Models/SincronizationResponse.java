@@ -9,6 +9,15 @@ public class SincronizationResponse {
     private List<String> devolutionsSincronized;
     private List<String> devolutionsAccepted;
     private List<String> devolutionsRejected;
+    private List<String> debtsOldedPayed;
+
+    public List<String> getDebtsOldedPayed() {
+        return debtsOldedPayed;
+    }
+
+    public void setDebtsOldedPayed(List<String> debtsOldedPayed) {
+        this.debtsOldedPayed = debtsOldedPayed;
+    }
 
     public List<String> getDevolutionsSincronized() {
         return devolutionsSincronized;

@@ -1,6 +1,54 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="ProjectRootManager" version="2" languageLevel="JDK_11" default="false" project-jdk-name="1.8" project-jdk-type="JavaSDK">
+  <component name="DesignSurface">
+    <option name="filePathToZoomLevelMap">
+      <map>
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/drawable-anydpi/email_icon.xml" value="0.276" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/drawable-v24/ic_launcher_foreground.xml" value="0.2625" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/drawable-xhdpi/email_icon.xml" value="0.182" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/drawable/email_icon.xml" value="0.196" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/drawable/ic_launcher_background.xml" value="0.2625" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/drawable/pedidos_ico.xml" value="0.196" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/drawable/progressbar_bg.xml" value="0.182" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/drawable/ventas_ico.xml" value="0.2625" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/activity_main.xml" value="0.3496376811594203" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/clientv2_generaldata.xml" value="0.3645833333333333" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/clientv2_geolocationdetails.xml" value="0.25" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/clientv2_modal_coordenates.xml" value="0.3645833333333333" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/clientv2_register_map_view.xml" value="0.3532608695652174" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/clientv2_visit_creation_modal.xml" value="0.3496376811594203" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/clientv2_visit_with_observations.xml" value="0.3496376811594203" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/clientv2_visits_view_map.xml" value="0.25" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/dialog_load_message.xml" value="0.18802083333333333" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/home.xml" value="0.25" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/item_list_client_visit.xml" value="0.3496376811594203" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/item_list_pedidos.xml" value="0.3496376811594203" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/item_list_product_sale.xml" value="0.25729166666666664" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/item_list_spinner_layout.xml" value="0.3496376811594203" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/list_order_edit_item.xml" value="0.2713541666666667" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/loginfragment.xml" value="0.25" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/map_location_selector_modal.xml" value="0.25729166666666664" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/menu_header.xml" value="0.36666666666666664" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/modal_confirm_direcction.xml" value="0.25729166666666664" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/modal_description_devolution.xml" value="0.18802083333333333" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/modal_endday_check.xml" value="0.36666666666666664" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/modal_success_operation.xml" value="0.18802083333333333" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/modalobservations.xml" value="0.18802083333333333" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/option_sales_modal.xml" value="0.18802083333333333" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/order_details_edit.xml" value="0.36666666666666664" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/pedido_form.xml" value="0.36666666666666664" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/pedidos_layout.xml" value="0.36666666666666664" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/resincronize_modal.xml" value="0.3645833333333333" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/sales_list.xml" value="0.33" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/user_register_form.xml" value="0.36666666666666664" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/user_register_layout.xml" value="0.2" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/visit_item.xml" value="0.36666666666666664" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/layout/visits_layout.xml" value="0.33" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/menu/bottom_navigation_menu.xml" value="0.36666666666666664" />
+        <entry key="..\:/Users/Jose Ignacio/Documents/Proyectos/Rovianda/VentasRoviandaVendedores/app/src/main/res/menu/menu_resincronize.xml" value="0.36666666666666664" />
+      </map>
+    </option>
+  </component>
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_1_8" default="true" project-jdk-name="1.8" project-jdk-type="JavaSDK">
     <output url="file://$PROJECT_DIR$/build/classes" />
   </component>
   <component name="ProjectType">

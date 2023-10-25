@@ -8,13 +8,19 @@ import androidx.room.PrimaryKey;
 @Entity(tableName = "clients")
 public class Client {
 
-    @PrimaryKey
+    @PrimaryKey(autoGenerate = true)
     @NonNull
-    @ColumnInfo(name = "client_id")
-    public int clientId;
+    @ColumnInfo(name = "client_mobile_id")
+    public Integer clientMobileId;
+
+    @ColumnInfo(name = "client_rov_id")
+    public Integer clientRovId;
 
     @ColumnInfo(name="client_key")
-    public int clientKey;
+    public Integer clientKey;
+
+    @ColumnInfo(name="client_key_temp")
+    public Integer clientKeyTemp;
 
     @ColumnInfo(name="seller_uid")
     public String uid;
@@ -31,6 +37,17 @@ public class Client {
     @ColumnInfo(name="credit_limit")
     public Float creditLimit;
 
+    @ColumnInfo(name="street")
+    public String street;
+    @ColumnInfo(name="municipality")
+    public String municipality;
+    @ColumnInfo(name="suburb")
+    public String suburb;
+    @ColumnInfo(name="no_exterior")
+    public String noExterior;
+    @ColumnInfo(name="cp")
+    public String cp;
+
     @ColumnInfo(name="monday")
     public Boolean monday;
     @ColumnInfo(name="tuesday")
@@ -45,6 +62,14 @@ public class Client {
     public Boolean saturday;
     @ColumnInfo(name="sunday")
     public Boolean sunday;
-    @ColumnInfo(name="cp")
-    public String cp;
+
+    @ColumnInfo(name="registered_in_mobile")
+    public Boolean registeredInMobile;
+    @ColumnInfo(name="sincronized")
+    public Boolean sincronized;
+
+    @ColumnInfo(name="latitude")
+    public Double latitude;
+    @ColumnInfo(name="longitude")
+    public Double longitude;
 }

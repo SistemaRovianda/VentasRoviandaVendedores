@@ -84,6 +84,9 @@
         <argument
             android:name="userName"
             app:argType="string" />
+        <action
+            android:id="@+id/action_visitsView_to_visitsMapView"
+            app:destination="@id/visitsMapView" />
     </fragment>
     <fragment
         android:id="@+id/clientView"
@@ -125,6 +128,13 @@
         <argument
             android:name="userName"
             app:argType="string" />
+        <action
+            android:id="@+id/action_clientView_to_clientGeneralDataRegisterView"
+            app:destination="@id/clientGeneralDataRegisterView"
+            app:enterAnim="@anim/fragment_open_enter"
+            app:exitAnim="@anim/fragment_open_exit"
+            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
     </fragment>
     <fragment
         android:id="@+id/pedidoView"
@@ -323,6 +333,105 @@
             app:argType="string" />
         <argument
             android:name="type"
+            app:argType="string" />
+    </fragment>
+    <fragment
+        android:id="@+id/clientGeneralDataRegisterView"
+        android:name="com.example.ventasrovianda.clientsv2.view.ClientGeneralDataRegisterView"
+        android:label="ClientGeneralDataRegisterView"
+        tools:layout="@layout/clientv2_generaldata">
+        <action
+            android:id="@+id/action_clientGeneralDataRegisterView_to_clientView"
+            app:destination="@id/clientView" />
+        <action
+            android:id="@+id/action_clientGeneralDataRegisterView_to_clientRegisterMapView"
+            app:destination="@id/clientRegisterMapView"
+            app:enterAnim="@anim/fragment_open_enter"
+            app:exitAnim="@anim/fragment_open_exit"
+            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+        <argument
+            android:name="username"
+            app:argType="string"
+            app:nullable="true" />
+        <argument
+            android:name="action"
+            app:argType="string"
+            android:defaultValue="CREATE" />
+        <argument
+            android:name="clientMobileId"
+            app:argType="integer" />
+        <argument
+            android:name="latitude"
+            app:argType="string"
+            app:nullable="true" />
+        <argument
+            android:name="longitude"
+            app:argType="string"
+            app:nullable="true" />
+        <argument
+            android:name="clientRovId"
+            app:argType="integer" />
+    </fragment>
+    <fragment
+        android:id="@+id/clientRegisterMapView"
+        android:name="com.example.ventasrovianda.clientsv2.view.ClientRegisterMapView"
+        android:label="ClientGeolocationView"
+        tools:layout="@layout/clientv2_register_map_view">
+
+        <argument
+            android:name="latitude"
+            app:argType="string"
+            app:nullable="true" />
+        <argument
+            android:name="longitude"
+            app:argType="string"
+            app:nullable="true" />
+        <argument
+            android:name="clientId"
+            app:argType="integer"
+            android:defaultValue="0" />
+        <argument
+            android:name="username"
+            app:argType="string" />
+        <argument
+            android:name="action"
+            app:argType="string" />
+        <action
+            android:id="@+id/action_clientRegisterMapView_to_clientGeneralDataRegisterView"
+            app:destination="@id/clientGeneralDataRegisterView"
+            app:enterAnim="@anim/fragment_open_enter"
+            app:exitAnim="@anim/fragment_open_exit"
+            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+        <argument
+            android:name="clientRovId"
+            app:argType="integer"
+            android:defaultValue="0" />
+    </fragment>
+    <fragment
+        android:id="@+id/visitsMapView"
+        android:name="com.example.ventasrovianda.cotizaciones.view.VisitsMapView"
+        android:label="VisitsMapView"
+        tools:layout="@layout/clientv2_visits_view_map">
+        <action
+            android:id="@+id/action_visitsMapView_to_visitsView"
+            app:destination="@id/visitsView" />
+        <argument
+            android:name="clientInVisit"
+            app:argType="com.example.ventasrovianda.Utils.Models.ClientDTO"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <action
+            android:id="@+id/action_visitsView_to_salesView"
+            app:destination="@id/salesView" />
+        <argument
+            android:name="PrinterDevice"
+            app:argType="com.example.ventasrovianda.Utils.Models.BluetoothDeviceSerializable"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="userName"
             app:argType="string" />
     </fragment>
 

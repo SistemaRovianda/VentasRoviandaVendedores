@@ -34,4 +34,12 @@ public interface SaleViewContract {
     boolean isNetworkAvailable();
 
     void showOptionsSale(SaleResponseDTO sale);
+
+    void setStatusConnectionServer(Boolean statusConnectionServer);
+    Boolean getStatusConnectionServer();
+    void modalInfo(String msg);
+    void updateStatusCancelation(String folio,String status);
+    void closeModalVerifyCancelationRequest();
+    void modalHasInternetVerifyCancelationRequest(String folio);
+    void markSaleSincronized(String folio);
 }

@@ -7,9 +7,18 @@ public class SincronizationNewVersionRequest {
     private List<ModeOfflineSM> sales;
     private List<DebPayedRequest> debts;
     private List<DevolutionRequestServer> devolutions;
-
+    private List<String> debtsOlded;
     public List<DevolutionRequestServer> getDevolutions() {
         return devolutions;
+    }
+
+
+    public List<String> getDebtsOlded() {
+        return debtsOlded;
+    }
+
+    public void setDebtsOlded(List<String> debtsOlded) {
+        this.debtsOlded = debtsOlded;
     }
 
     public void setDevolutions(List<DevolutionRequestServer> devolutions) {

@@ -54,7 +54,6 @@ public class AdapterListProductSale extends BaseAdapter {
         View view  = convertView;
         LayoutInflater layoutInflater = LayoutInflater.from(this.context);
         view= layoutInflater.inflate(R.layout.item_list_product_sale, null);
-
         TextView code = (TextView) view.findViewById(R.id.productCode);
         TextView name = (TextView) view.findViewById(R.id.productName);
         TextView weight = (TextView) view.findViewById(R.id.productWeight);
@@ -62,7 +61,6 @@ public class AdapterListProductSale extends BaseAdapter {
         name.setText(products[position].getNameProduct()+"\n"+products[position].getPresentationType());
         name.setTextSize(14);
         weight.setText(String.valueOf(products[position].getWeight()));
-        //image.setImageResource("");
         return  view;
     }
 

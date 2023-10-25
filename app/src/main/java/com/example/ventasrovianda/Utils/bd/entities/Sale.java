@@ -22,6 +22,9 @@ public class Sale {
     @ColumnInfo(name="key_client")
     public int keyClient;
 
+    @ColumnInfo(name="is_temp_key_client")
+    public boolean isTempKeyClient;
+
     @ColumnInfo(name="payed")
     public Float payed;
 

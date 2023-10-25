@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface ClientViewContract {
     void goToLogin();
+    void goToEditClient(Integer clientRovId,Integer clientMobileId);
 }

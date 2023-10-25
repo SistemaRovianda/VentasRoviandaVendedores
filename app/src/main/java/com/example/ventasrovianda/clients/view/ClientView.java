@@ -12,11 +12,13 @@ import android.os.Handler;
 import android.os.Looper;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -37,6 +39,7 @@ import com.example.ventasrovianda.Utils.Models.ClientDTO;
 import com.example.ventasrovianda.Utils.Models.ClientOfflineMode;
 import com.example.ventasrovianda.Utils.Models.ModeOfflineModel;
 import com.example.ventasrovianda.Utils.ViewModelStore;
+import com.example.ventasrovianda.Utils.bd.AppDatabase;
 import com.example.ventasrovianda.Utils.bd.entities.Client;
 import com.example.ventasrovianda.clients.presenter.ClientPresenter;
 import com.example.ventasrovianda.clients.presenter.ClientPresenterContract;
@@ -63,7 +66,7 @@ public class ClientView extends Fragment implements View.OnClickListener,ClientV
     MaterialButton nuevoCliente,buscarCliente;
 
     NavController navController;
-    TextView logoutButton,endDayButton,eatTimeButton;
+    TextView logoutButton,endDayButton;
     ListView listaClients;
     ClientPresenterContract presenter;
     TextInputLayout inputSearch;
@@ -75,6 +78,8 @@ public class ClientView extends Fragment implements View.OnClickListener,ClientV
     TextView userNameTextView;
     ViewModelStore viewModelStore;
     Gson parser;
+
+    Button addNewClientButton;
     boolean modeOffline;
 
     ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -98,6 +103,7 @@ public class ClientView extends Fragment implements View.OnClickListener,ClientV
         this.printerButton.setVisibility(View.INVISIBLE);
         this.logoutButton=view.findViewById(R.id.Logout_button);
         this.logoutButton.setOnClickListener(this);
+        this.logoutButton.setGravity(Gravity.RIGHT);
         this.nuevoCliente = view.findViewById(R.id.nuevoCliente);
         this.nuevoCliente.setOnClickListener(this);
         this.listaClients = view.findViewById(R.id.listaClientes);
@@ -109,11 +115,10 @@ public class ClientView extends Fragment implements View.OnClickListener,ClientV
 
         this.endDayButton = view.findViewById(R.id.end_day_button);
         this.endDayButton.setOnClickListener(this);
-        this.eatTimeButton = view.findViewById(R.id.eat_time_button);
-        this.eatTimeButton.setOnClickListener(this);
-        this.endDayButton.setVisibility(View.GONE);
-        this.eatTimeButton.setVisibility(View.GONE);
 
+        this.endDayButton.setVisibility(View.GONE);
+        this.addNewClientButton= view.findViewById(R.id.addNewClientButton);
+        this.addNewClientButton.setOnClickListener(this);
         bluetoothDeviceSerializable = ClientViewArgs.fromBundle(getArguments()).getPrinterDevice();
         this.parser = new Gson();
         this.inputSearch.getEditText().addTextChangedListener(new TextWatcher() {
@@ -204,17 +209,25 @@ public class ClientView extends Fragment implements View.OnClickListener,ClientV
         this.navController.navigate(ClientViewDirections.actionClientViewToSalesView(this.userName).setClientInVisit(this.clientDTO).setPrinterDevice(bluetoothDeviceSerializable).setUserName(this.userName));
     }
 
+    void goToNewClientRegister(){
+        this.navController.navigate(ClientViewDirections.actionClientViewToClientGeneralDataRegisterView(this.userName,0,null,null,0));
+    }
+
+    @Override
+    public void goToEditClient(Integer clientRovId,Integer clientMobileId){
+        this.navController.navigate(ClientViewDirections.actionClientViewToClientGeneralDataRegisterView(this.userName,clientMobileId!=null?clientMobileId:0,null,null,clientRovId!=null?clientRovId:0).setAction("EDIT"));
+    }
+
     void logout(){
         AlertDialog dialog = new MaterialAlertDialogBuilder(getContext()).setTitle("Cerrar sesion")
                 .setMessage("¿Está seguro que desea cerrar sesion?").setPositiveButton("Aceptar", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-
-
                             executor.execute(new Runnable() {
                                 @Override
                                 public void run() {
-                                    viewModelStore.getAppDatabase().userDataInitialDao().updateAllLogedInFalse();
+                                    AppDatabase conexion=AppDatabase.getInstance(getContext());
+                                    conexion.userDataInitialDao().updateAllLogedInFalse();
                                     handler.post(new Runnable() {
                                         @Override
                                         public void run() {
@@ -250,6 +263,9 @@ public class ClientView extends Fragment implements View.OnClickListener,ClientV
                 break;
             case R.id.buscarClienteButton:
                     search();
+                break;
+            case R.id.addNewClientButton:
+                    goToNewClientRegister();
                 break;
         }
     }
@@ -325,9 +341,9 @@ public class ClientView extends Fragment implements View.OnClickListener,ClientV
         executor.execute(new Runnable() {
             @Override
             public void run() {
+                AppDatabase conexion = AppDatabase.getInstance(getContext());
                 List<Client> clientsToVisit=new ArrayList<>();
-
-                List<Client> clientsFromSql= viewModelStore.getAppDatabase().clientDao().getClientsBySellerUid(viewModelStore.getStore().getSellerId());
+                List<Client> clientsFromSql= conexion.clientDao().getClientsBySellerUid(viewModelStore.getStore().getSellerId());
                 for(Client client : clientsFromSql){
                     if(filter){
                         if(client.name.toLowerCase().contains(hint.toLowerCase()) || String.valueOf(client.clientKey).contains(hint)){
@@ -337,7 +353,6 @@ public class ClientView extends Fragment implements View.OnClickListener,ClientV
                         clientsToVisit.add(client);
                     }
                 }
-
                 handler.post(new Runnable() {
                     @Override
                     public void run() {
@@ -352,6 +367,14 @@ public class ClientView extends Fragment implements View.OnClickListener,ClientV
                                     View view = super.getView(position, convertView, parent);
                                     TextView tv = (TextView) view.findViewById(android.R.id.text1);
                                     tv.setTextColor(Color.WHITE);
+                                    tv.setOnLongClickListener(new View.OnLongClickListener() {
+                                        @Override
+                                        public boolean onLongClick(View view) {
+                                            Client client = clientsToVisit.get(position);
+                                            showModalToEdit(client.clientRovId,client.clientMobileId,clientsToVisit.get(position).clientKey);
+                                            return false;
+                                        }
+                                    });
                                     return view;
                                 }
                             };
@@ -361,5 +384,21 @@ public class ClientView extends Fragment implements View.OnClickListener,ClientV
                 });
             }
         });
+    }
+
+    private void showModalToEdit(Integer clientRovId,Integer clientMobileId,Integer keyClient){
+        AlertDialog dialog = new MaterialAlertDialogBuilder(getContext()).setTitle("Editar cliente")
+                .setMessage("¿Seguro que desea editar a este cliente ("+keyClient+")?").setPositiveButton("Aceptar", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        goToEditClient(clientRovId,clientMobileId);
+                    }
+                }).setNegativeButton("Cancelar", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {
+                        dialogInterface.dismiss();
+                    }
+                }).create();
+        dialog.show();
     }
 }

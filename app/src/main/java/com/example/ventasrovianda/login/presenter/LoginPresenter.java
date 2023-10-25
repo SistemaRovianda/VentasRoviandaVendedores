@@ -5,6 +5,7 @@ import android.content.Context;
 import androidx.annotation.NonNull;
 
 import com.android.volley.Cache;
+import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.Network;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
@@ -14,7 +15,9 @@ import com.android.volley.VolleyError;
 import com.android.volley.toolbox.BasicNetwork;
 import com.android.volley.toolbox.DiskBasedCache;
 import com.android.volley.toolbox.HurlStack;
+import com.example.ventasrovianda.Utils.Constants;
 import com.example.ventasrovianda.Utils.GsonRequest;
+import com.example.ventasrovianda.Utils.Models.ModeOfflineNewVersion;
 import com.example.ventasrovianda.Utils.Models.ProductPresentation;
 import com.example.ventasrovianda.Utils.Models.Token;
 import com.example.ventasrovianda.Utils.Models.UserDetails;
@@ -41,9 +44,10 @@ public class LoginPresenter implements LoginPresenterContract{
     private Network network;
     private Gson parser;
     private GsonRequest serviceConsumer;
-    private String url ="https://us-central1-sistema-rovianda.cloudfunctions.net/app";;//"https://us-central1-sistema-rovianda.cloudfunctions.net/app";
+    private String url = Constants.URL;
     private RequestQueue requestQueue;
     private FirebaseAuth firebaseAuth;
+    private FirebaseMessaging fMsg;
     public LoginPresenter(Context context, LoginView loginView){
         this.context=context;
         this.view=loginView;
@@ -52,37 +56,33 @@ public class LoginPresenter implements LoginPresenterContract{
         network = new BasicNetwork(new HurlStack());
         requestQueue = new RequestQueue(cache,network);
         requestQueue.start();
+        this.fMsg = FirebaseMessaging.getInstance();
+
         parser = new Gson();
     }
 
     @Override
-    public void doLogin(final String email,final String password) {
-        if(email.isEmpty()){
-            view.setEmailInputError("Email no puede estar vacio");
-            return;
-        }
-        if(password.isEmpty()){
-            view.setPasswordInputError("Password no puede estar vacio");
-            return;
-        }
-        System.out.println(email.toLowerCase().trim());
-        System.out.println(password.toLowerCase().trim());
-        String emailStr =email.toLowerCase().trim();
-        String passwordStr=password.toString();
-        if(emailStr!=null && !emailStr.isEmpty() && passwordStr!=null && !password.isEmpty()) {
-            this.firebaseAuth.signInWithEmailAndPassword(email.toLowerCase().trim(), password.trim()).addOnCompleteListener(new OnCompleteListener<AuthResult>() {
-                @Override
-                public void onComplete(@NonNull Task<AuthResult> task) {
-                    if (task.isComplete() && task.isSuccessful()) {
-                        getDetailsOfUser(task.getResult().getUser().getUid());
+    public void doLogin() {
+        Boolean mustDoLogin = validateInputs();
+        if(mustDoLogin) {
+            view.setStatusLogin(true);
+            String emailStr = view.getEmailInputText();
+            String passwordStr = view.getPasswordText();
 
-                    } else {
-                        view.showErrors("Error con las credenciales");
+                this.firebaseAuth.signInWithEmailAndPassword(emailStr.toLowerCase().trim(), passwordStr.trim()).addOnCompleteListener(new OnCompleteListener<AuthResult>() {
+                    @Override
+                    public void onComplete(@NonNull Task<AuthResult> task) {
+                        if (task.isComplete() && task.isSuccessful()) {
+                            getDetailsOfUser(task.getResult().getUser().getUid());
+                        } else {
+                            view.showErrors("Error con las credenciales");
+                            view.setStatusLogin(false);
+                        }
                     }
-                }
-            });
+                });
+
         }else{
-            view.showErrors("Introduce correctamente las credenciales");
+            view.setStatusLogin(false);
         }
     }
 
@@ -93,17 +93,21 @@ public class LoginPresenter implements LoginPresenterContract{
                         new Response.Listener<UserDetails>(){
                             @Override
                             public void onResponse(UserDetails response) {
+                                view.setStatusLogin(false);
                                 if(response.getRol().equals("SALESUSER")){
-                                    //setToken(uid);
+                                    sendToken(uid);
+                                    view.disableButtonLogin(true);
                                     view.goToHome(response.getName(),uid);
                                 }else{
                                     view.showErrors("Usuario no autorizado");
                                 }
+
                             }
 
                         },new Response.ErrorListener(){
                     @Override
                     public void onErrorResponse(VolleyError error) {
+                        view.setStatusLogin(false);
                         view.showErrors("El usuario no existe en el sistema");
                     }
                 }   , Request.Method.GET,null
@@ -139,66 +143,77 @@ public class LoginPresenter implements LoginPresenterContract{
         return (this.firebaseAuth.getCurrentUser()!=null)?this.firebaseAuth.getUid():null;
     }
 
-
-    /*@Override
-    public void setToken(String uid) {
-        FirebaseMessaging.getInstance().getToken().addOnCompleteListener(new OnCompleteListener<String>() {
+    @Override
+    public void sendToken(String uid) {
+        this.fMsg.getToken().addOnCompleteListener(new OnCompleteListener<String>() {
             @Override
             public void onComplete(@NonNull Task<String> task) {
-                if(task.isSuccessful()){
-                    System.out.println("Se obtuvo el token: "+task.getResult());
-                    Token token = new Token();
-                    token.setToken(task.getResult());
-                    FirebaseMessaging.getInstance().subscribeToTopic("admin_sales").addOnCompleteListener(new OnCompleteListener<Void>() {
+                if(task.isSuccessful()) {
+                    Map<String,String> headers = new HashMap<>();
+                    headers.put("Content-Type", "application/json");
+                    GsonRequest<String> tokenSended = new GsonRequest<String>
+                            (url+"/rovianda/set-token/"+uid, String.class,headers,
+                                    new Response.Listener<String>(){
+                                        @Override
+                                        public void onResponse(String response) {
+                                            System.out.println("Token registrado");
+                                        }
+
+                                    },new Response.ErrorListener(){
+                                @Override
+                                public void onErrorResponse(VolleyError error) {
+
+                                }
+                            }   , Request.Method.PUT,"{\"token\":\""+task.getResult()+"\""+"}"
+                            );
+                    requestQueue.add(tokenSended).setRetryPolicy(new RetryPolicy() {
                         @Override
-                        public void onComplete(@NonNull Task<Void> task) {
-                            if(task.isSuccessful()){
-                                System.out.println("Token suscrito al topico admin_sales");
-                            }
+                        public int getCurrentTimeout() {
+                            return 15000;
+                        }
+
+                        @Override
+                        public int getCurrentRetryCount() {
+                            return 0;
+                        }
+
+                        @Override
+                        public void retry(VolleyError error) throws VolleyError {
+
                         }
                     });
-                    sendToken(uid,token);
-                }else {
-                    System.out.println("No se pudo asignar un token, verifique conexión de red");
                 }
             }
         });
     }
 
     @Override
-    public void sendToken(String uid, Token token) {
+    public Boolean validateInputs() {
+        String email = view.getEmailInputText();
+        String password = view.getPasswordText();
+        if(email.isEmpty()) {view.setEmailInputError("Campo Obligatorio"); return false;}
+        if(password.isEmpty()) {view.setPasswordInputError("Campo Obligatorio"); return false;}
+        return true;
+    }
+
+    @Override
+    public void checkCommunicationToServer() {
+
         Map<String,String> headers = new HashMap<>();
-        headers.put("Content-Type","application/json");
-        GsonRequest<String> sendTokenReq = new GsonRequest<String>
-                (url+"/rovianda/set-token/"+uid, String.class,headers,
-                        new Response.Listener<String>(){
-                            @Override
-                            public void onResponse(String response) {
-
-                            }
-
-                        },new Response.ErrorListener(){
-                    @Override
-                    public void onErrorResponse(VolleyError error) {
-
-                    }
-                }   , Request.Method.PUT,parser.toJson(token)
-                );
-        requestQueue.add(sendTokenReq).setRetryPolicy(new RetryPolicy() {
+        GsonRequest<ModeOfflineNewVersion> ping = new GsonRequest<ModeOfflineNewVersion>(
+                url + "/rovianda/ping", ModeOfflineNewVersion.class, headers, new Response.Listener<ModeOfflineNewVersion>() {
             @Override
-            public int getCurrentTimeout() {
-                return 15000;
-            }
+            public void onResponse(ModeOfflineNewVersion response) {
 
+                view.setStatusConnectionServer(true);
+            }
+        }, new Response.ErrorListener() {
             @Override
-            public int getCurrentRetryCount() {
-                return 0;
+            public void onErrorResponse(VolleyError error) {
+                view.setStatusConnectionServer(false);
             }
-
-            @Override
-            public void retry(VolleyError error) throws VolleyError {
-
-            }
-        });
-    }*/
+        },Request.Method.GET,null
+        );
+        requestQueue.add(ping).setRetryPolicy(new DefaultRetryPolicy(5000,0,DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+    }
 }

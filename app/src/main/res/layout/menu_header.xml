@@ -8,7 +8,7 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#0B0A0A"
+        android:background="#232532"
         android:orientation="vertical">
 
         <LinearLayout
@@ -43,21 +43,12 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/textView2"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/vidaloka"
-                android:text="ROVIANDA"
-                android:textColor="#23C62A"
-                android:textSize="30sp" />
-
             <ImageView
                 android:id="@+id/printerButton"
-                android:layout_width="40dp"
+                android:layout_width="wrap_content"
                 android:layout_height="40dp"
+                android:layout_gravity="right"
                 android:layout_weight="1"
-                android:background="#0B0A0A"
                 app:srcCompat="@drawable/printer_icon"
                 app:tint="#BDB5B5"
                 tools:ignore="VectorDrawableCompat" />
@@ -76,69 +67,130 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <ImageView
-                android:id="@+id/downloadChanges"
+            <TextView
+                android:id="@+id/totalCash"
                 android:layout_width="wrap_content"
-                android:layout_height="match_parent"
+                android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:visibility="gone"
-                app:srcCompat="@drawable/ic_download_black_24dp"
-                app:tint="#2FBF34" />
-
-            <ImageView
-                android:id="@+id/uploadChanges"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:visibility="gone"
-                app:srcCompat="@drawable/ic_publish_black_24dp"
-                app:tint="#2FBF34" />
+                android:gravity="center"
+                android:text="TextView"
+                android:textColor="#FBFBFB"
+                android:visibility="gone" />
 
             <TextView
-                android:id="@+id/eat_time_button"
+                android:id="@+id/totalWeight"
                 android:layout_width="wrap_content"
-                android:layout_height="40dp"
-                android:layout_marginTop="20dp"
+                android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:enabled="false"
-                android:fontFamily="@font/vidaloka"
-                android:text="Hora de comida"
-                android:textColor="#28BF2E"
-                android:textSize="12sp"
-                android:visibility="invisible" />
+                android:gravity="center"
+                android:textColor="#FFFFFF"
+                android:visibility="gone" />
 
-            <TextView
+            <LinearLayout
+                android:id="@+id/linearLayoutDownload"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <ImageButton
+                    android:id="@+id/downloadChanges"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:background="#232532"
+                    android:contentDescription="Boton para bajar cambios de sistema"
+                    android:scaleType="fitCenter"
+                    android:tint="#2FBF34"
+                    app:srcCompat="@drawable/ic_download_black_24dp" />
+
+                <TextView
+                    android:id="@+id/textView2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="Bajar cambios (Día actual)"
+                    android:textColor="#FFFFFF"
+                    android:textSize="10sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/linearLayoutUpload"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <ImageButton
+                    android:id="@+id/uploadChanges"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:background="#232532"
+                    android:contentDescription="Boton para subir cambios de sistema"
+                    android:scaleType="fitCenter"
+                    android:tint="#2FBF34"
+                    app:srcCompat="@drawable/ic_publish_black_24dp" />
+
+                <TextView
+                    android:id="@+id/textView8"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="Subir cambios (Día actual)"
+                    android:textColor="#FBFBFB"
+                    android:textSize="10sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/linearLayoutResincronize"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <ImageButton
+                    android:id="@+id/resincronize"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:background="#232532"
+                    android:contentDescription="Boton para resincronizar"
+                    android:scaleType="fitCenter"
+                    android:tint="#2FBF34"
+                    app:srcCompat="@drawable/ic_sync_problem_white_24dp" />
+
+                <TextView
+                    android:id="@+id/textView9"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="Resincronizar (Días anteriores)"
+                    android:textColor="#FBFBFB"
+                    android:textSize="10sp" />
+            </LinearLayout>
+
+            <Button
                 android:id="@+id/end_day_button"
                 android:layout_width="wrap_content"
-                android:layout_height="40dp"
-                android:layout_marginTop="20dp"
+                android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:fontFamily="@font/vidaloka"
-                android:text="Terminar día"
-                android:textColor="#28BF2E"
-                android:textSize="12sp" />
+                android:text="Terminar Día"
+                android:visibility="visible"
+                app:backgroundTint="#232532" />
 
-            <ImageView
-                android:id="@+id/resincronizeButton"
-                android:layout_width="wrap_content"
-                android:layout_height="40dp"
-                android:layout_marginTop="20dp"
-                android:layout_weight="1"
-                android:visibility="gone"
-                app:srcCompat="@drawable/ic_sync_problem_white_24dp"
-                app:tint="#CCCCCC" />
-
-            <TextView
+            <Button
                 android:id="@+id/Logout_button"
                 android:layout_width="wrap_content"
-                android:layout_height="40dp"
-                android:layout_marginTop="20dp"
+                android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:fontFamily="@font/vidaloka"
-                android:gravity="right"
-                android:text="Cerrar sesión"
-                android:textColor="#28BF2E"
-                android:textSize="12sp" />
+                android:text="Cerrar Sesión"
+                android:visibility="visible"
+                app:backgroundTint="#232532" />
+
         </LinearLayout>
     </LinearLayout>
 

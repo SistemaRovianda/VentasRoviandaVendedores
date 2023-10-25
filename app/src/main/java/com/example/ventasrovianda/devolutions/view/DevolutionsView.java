@@ -24,6 +24,7 @@ import androidx.navigation.fragment.NavHostFragment;
 
 import com.example.ventasrovianda.R;
 import com.example.ventasrovianda.Utils.ViewModelStore;
+import com.example.ventasrovianda.Utils.bd.AppDatabase;
 import com.example.ventasrovianda.Utils.bd.entities.DevolutionRequest;
 import com.example.ventasrovianda.Utils.bd.entities.DevolutionSubSale;
 import com.example.ventasrovianda.Utils.bd.entities.Sale;
@@ -108,11 +109,11 @@ public class DevolutionsView extends Fragment implements View.OnClickListener,De
         executor.execute(new Runnable() {
             @Override
             public void run() {
-
-                Sale sale = viewModelStore.getAppDatabase().saleDao().getByFolio(folioSelected);
-                List<SubSale> subSaleList = viewModelStore.getAppDatabase().subSalesDao().getSubSalesBySale(folioSelected);
+                AppDatabase conexion=AppDatabase.getInstance(getContext());
+                Sale sale = conexion.saleDao().getByFolio(folioSelected);
+                List<SubSale> subSaleList = conexion.subSalesDao().getSubSalesBySale(folioSelected);
                 for(SubSale subSale : subSaleList){
-                    DevolutionSubSale devolutionSubSale = viewModelStore.getAppDatabase().devolutionSubSaleDao().findDevolutionSubSaleBySubSaleId(subSale.subSaleId);
+                    DevolutionSubSale devolutionSubSale = conexion.devolutionSubSaleDao().findDevolutionSubSaleBySubSaleId(subSale.subSaleId);
                     if(devolutionSubSale!=null){
                         subSale.price=(subSale.price/subSale.quantity)*devolutionSubSale.quantity;
                         subSale.quantity=devolutionSubSale.quantity;
@@ -140,11 +141,11 @@ public class DevolutionsView extends Fragment implements View.OnClickListener,De
         executor.execute(new Runnable() {
             @Override
             public void run() {
-
-                Sale sale = viewModelStore.getAppDatabase().saleDao().getByFolio(folioSelected);
-                List<SubSale> subSales = viewModelStore.getAppDatabase().subSalesDao().getSubSalesBySale(folioSelected);
-                DevolutionRequest  devolutionRequest = viewModelStore.getAppDatabase().devolutionRequestDao().findDevolutionRequestByFolioRegister(folioSelected);
-                List<DevolutionSubSale> devolutionSubSales = viewModelStore.getAppDatabase().devolutionSubSaleDao().findByDevolutionRequestId(devolutionRequest.devolutionRequestId);
+                AppDatabase conexion=AppDatabase.getInstance(getContext());
+                Sale sale = conexion.saleDao().getByFolio(folioSelected);
+                List<SubSale> subSales = conexion.subSalesDao().getSubSalesBySale(folioSelected);
+                DevolutionRequest  devolutionRequest = conexion.devolutionRequestDao().findDevolutionRequestByFolioRegister(folioSelected);
+                List<DevolutionSubSale> devolutionSubSales = conexion.devolutionSubSaleDao().findByDevolutionRequestId(devolutionRequest.devolutionRequestId);
                 Float amount =Float.parseFloat("0");
                 for(DevolutionSubSale devolutionSubSale : devolutionSubSales){
                     amount+=devolutionSubSale.price;
@@ -310,10 +311,11 @@ public class DevolutionsView extends Fragment implements View.OnClickListener,De
         executor.execute(new Runnable() {
             @Override
             public void run() {
-                DevolutionRequest devolutionRequest1 = viewModelStore.getAppDatabase().devolutionRequestDao().findDevolutionRequestPendingByFolio(devolutionRequest.folio);
+                AppDatabase conexion=AppDatabase.getInstance(getContext());
+                DevolutionRequest devolutionRequest1 = conexion.devolutionRequestDao().findDevolutionRequestPendingByFolio(devolutionRequest.folio);
                 if(devolutionRequest1==null){
-                    viewModelStore.getAppDatabase().devolutionRequestDao().insertAll(devolutionRequest);
-                    DevolutionRequest devolutionRequest2 = viewModelStore.getAppDatabase().devolutionRequestDao().findDevolutionRequestByFolio(devolutionRequest.folio);
+                    conexion.devolutionRequestDao().insertAll(devolutionRequest);
+                    DevolutionRequest devolutionRequest2 = conexion.devolutionRequestDao().findDevolutionRequestByFolio(devolutionRequest.folio);
                     for(SubSale subSale : subSalesEntities){
                         DevolutionSubSale devolutionSubSale = new DevolutionSubSale();
                         devolutionSubSale.devolutionRequestId=devolutionRequest2.devolutionRequestId;
@@ -326,7 +328,7 @@ public class DevolutionsView extends Fragment implements View.OnClickListener,De
                         devolutionSubSale.subSaleId=subSale.subSaleId;
                         devolutionSubSale.uniMed=subSale.uniMed;
                         devolutionSubSale.weightStandar=subSale.weightStandar;
-                        viewModelStore.getAppDatabase().devolutionSubSaleDao().insertAll(devolutionSubSale);
+                        conexion.devolutionSubSaleDao().insertAll(devolutionSubSale);
                     }
                 }
 

@@ -18,8 +18,26 @@ public interface SaleDao {
     @Query("select * from sales where date between :date1 and :date2")
     List<Sale> getAllSalesByDate(String date1,String date2);
 
+    @Query("select * from sales where seller_id=:sellerId and date between :date1 and :date2")
+    List<Sale> getAllSalesByDateBySeller(String date1,String date2,String sellerId);
+
+    @Query("select * from sales where client_id=:clientId and date between :date1 and :date2")
+    List<Sale> getAllSalesByDateAndClientId(String date1,String date2,Integer clientId);
+
+    @Query("select * from sales where key_client=:keyClientTemp  and date between :date1 and :date2")
+    List<Sale> getAllSalesByDateAndKeyClientTemp(String date1,String date2,Integer keyClientTemp);
+
+    @Query("select * from sales where status=1")
+    List<Sale> getAllWithoutPayment();
+
     @Query("select * from sales where (sincronized=0) or ( sincronized=1 and modified=1)")
     List<Sale> getAllSalesUnsincronized();
+
+    @Query("select * from sales where seller_id=:sellerId and ((sincronized=0) or ( sincronized=1 and modified=1))")
+    List<Sale> getAllSalesUnsincronizedBySeller(String sellerId);
+
+    @Query("select * from sales where key_client=:keyClientOld and is_temp_key_client=1")
+    List<Sale> getAllTempClientSales(Integer keyClientOld);
 
     @Query("select * from sales where  date between :date1 and :date2")
     List<Sale> getAllSalesUnsincronizedByDate(String date1,String date2);

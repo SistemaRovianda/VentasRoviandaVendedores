@@ -108,7 +108,8 @@
             <ListView
                 android:id="@+id/listCreatingOrder"
                 android:layout_width="match_parent"
-                android:layout_height="400dp" />
+                android:layout_height="200dp"
+                android:minHeight="200dp" />
 
             <Button
                 android:id="@+id/registerOrder"

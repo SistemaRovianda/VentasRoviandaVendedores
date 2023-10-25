@@ -1,5 +1,6 @@
 package com.example.ventasrovianda.sales.presenter;
 
+import com.example.ventasrovianda.Utils.Models.ModeOfflineSM;
 import com.example.ventasrovianda.Utils.Models.PayDebtsModel;
 import com.example.ventasrovianda.Utils.Models.SaleResponseDTO;
 
@@ -19,5 +20,7 @@ public interface SalePresenterContract {
     void doPayDebt(Long saleId, PayDebtsModel payDebtsModel);
     void checkPayDeb(SaleResponseDTO sale);
     void reprintPaydeb(SaleResponseDTO sale);
-
+    void checkCommunicationToServer();
+    void sendCancelationRequest(ModeOfflineSM cancelation);
+    void verifyCancelation(String folio);
 }

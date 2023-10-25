@@ -10,5 +10,5 @@ public interface PedidoDetailsContract {
     void goToLogin();
 
     void setValuesToRow(int position,int value);
-
+    void successUpdate(String msg);
 }

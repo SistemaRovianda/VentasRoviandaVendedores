@@ -98,10 +98,13 @@ public class SaleListAdapter extends BaseAdapter {
 
 
         status.setTextColor(Color.GREEN);
+
         optionsButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                    viewM.showOptionsSale(sales[position]);
+
+                        viewM.showOptionsSale(sales[position]);
+
             }
         });
 

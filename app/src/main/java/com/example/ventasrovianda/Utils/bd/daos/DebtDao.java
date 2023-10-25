@@ -17,7 +17,8 @@ public interface DebtDao {
 
 
     @Query("select * from debts where sincronized=0")
-    List<Debt> getAllSalesWithoutSincronization();
+    List<Debt> getAllDebsWithoutSincronization();
+
 
     @Query("select * from debts where folio=:folio limit 1")
     Debt getDebtByFolio(String folio);

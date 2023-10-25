@@ -6,6 +6,9 @@ import com.example.ventasrovianda.Utils.Models.DevolutionRequestServer;
 import com.example.ventasrovianda.Utils.Models.ModeOfflineSM;
 import com.example.ventasrovianda.Utils.Models.ModeOfflineSincronize;
 import com.example.ventasrovianda.Utils.Models.ProductRovianda;
+import com.example.ventasrovianda.clientsv2.models.ClientV2Request;
+import com.example.ventasrovianda.clientsv2.models.ClientV2UpdateRequest;
+import com.example.ventasrovianda.clientsv2.models.ClientV2VisitRequest;
 
 import java.util.List;
 
@@ -20,13 +23,13 @@ public interface VisitsPresenterContract {
 
     void setClientVisit(ClientDTO clientVisit);
     void logout();
-
     //void getStockOnline();
-
     void UploadChanges(ModeOfflineSincronize ModeOfflineSincronize,String uid);
     void updateStatusSincronizedClient(List<Integer> clients);
     void getDataInitial(String sellerUid,String date);
-
     void sincronizeSales(List<ModeOfflineSM> ModeOfflineSMS, List<DebPayedRequest> debtsPayedRequest, List<DevolutionRequestServer> devolutionRequestServers,String sellerId);
-
+    void tryRegisterClients(List<ClientV2Request> clientV2Request);
+    void updateCustomerV2(List<ClientV2UpdateRequest> clientV2UpdateRequestList);
+    void registerVisitsV2(List<ClientV2VisitRequest> clientV2VisitRequests);
+    void checkSalesCredit(List<String> folios);
 }

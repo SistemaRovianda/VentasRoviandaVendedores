@@ -3,8 +3,11 @@ package com.example.ventasrovianda.Utils.bd.daos;
 import androidx.room.Dao;
 import androidx.room.Insert;
 import androidx.room.Query;
+import androidx.room.Update;
 
 import com.example.ventasrovianda.Utils.bd.entities.UserDataInitial;
+
+import java.util.List;
 
 @Dao
 public interface UserDataInitialDao {
@@ -24,8 +27,8 @@ public interface UserDataInitialDao {
     @Query("update user_date_initial set loged_in=0")
     void updateAllLogedInFalse();
 
-    @Query("select * from user_date_initial where loged_in=1 limit 1")
-    UserDataInitial getAnyLogedIn();
+    @Query("select * from user_date_initial where loged_in=1")
+    List<UserDataInitial> getAnyLogedIn();
 
     @Query("update user_date_initial set loged_in=1 where uid=:uid")
     void updateAllLogedInTrue(String uid);
@@ -36,4 +39,6 @@ public interface UserDataInitialDao {
     @Query("update user_date_initial set printer_mac_address=:printerAddress where uid=:uid")
     void updatePrinterAddress(String uid,String printerAddress);
 
+    @Update
+    void updateUserData(UserDataInitial... userDataInitial);
 }

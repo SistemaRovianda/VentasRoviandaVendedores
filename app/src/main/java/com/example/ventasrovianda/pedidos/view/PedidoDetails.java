@@ -61,7 +61,7 @@ public class PedidoDetails extends Fragment implements PedidoDetailsContract,Vie
     ImageView backArrow;
     TextView orderIdTextView;
     Long orderId;
-    TextView endDayButton,eatTimeButton,logoutButton;
+    TextView logoutButton;
     String dateOrder;
 
     @Nullable
@@ -69,12 +69,7 @@ public class PedidoDetails extends Fragment implements PedidoDetailsContract,Vie
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.order_details_edit,null,false);
         listDetails= view.findViewById(R.id.listDetails);
-
-        this.endDayButton = view.findViewById(R.id.end_day_button);
-        this.eatTimeButton = view.findViewById(R.id.eat_time_button);
         this.logoutButton = view.findViewById(R.id.Logout_button);
-        endDayButton.setVisibility(View.GONE);
-        eatTimeButton.setVisibility(View.GONE);
         logoutButton.setOnClickListener(this);
         updateBtn= view.findViewById(R.id.updateOrder);
         updateBtn.setOnClickListener(this);
@@ -211,6 +206,29 @@ public class PedidoDetails extends Fragment implements PedidoDetailsContract,Vie
             request.add(req);
         }
         presenter.udpateOrderDetails(request,orderId);
+    }
+    AlertDialog modalSuccess=null;
+    @Override
+    public void successUpdate(String msg) {
+        isLoading=false;
+        this.loadingProgress.setVisibility(View.GONE);
+        LayoutInflater inflater = LayoutInflater.from(getContext());
+        View view = inflater.inflate(R.layout.modal_success_operation,null);
+        TextView messageLoad = view.findViewById(R.id.message_load);
+        Button btnAccept = view.findViewById(R.id.acceptButtonModal);
+        messageLoad.setText(msg);
+        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+        builder.setView(view);
+        builder.setCancelable(false);
+        this.modalSuccess=builder.create();
+        this.modalSuccess.show();
+        btnAccept.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                modalSuccess.dismiss();
+                goBack();
+            }
+        });
     }
 
     @Override

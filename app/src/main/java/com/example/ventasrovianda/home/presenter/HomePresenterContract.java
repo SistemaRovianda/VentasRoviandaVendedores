@@ -10,24 +10,8 @@ import java.util.List;
 
 public interface HomePresenterContract {
     void doLogout();
-
-    //void findUser(Integer userId);
-
-    //void findProduct(String code);
-
-    void doSale(SaleDTO saleDTO);
-
-    void getEndDayTicket();
-
-    //void getCounterTimer(int intent);
-
-    //void startEatTime();
-
-    //void endEatTime();
-    void getStockOnline();
-    //void getStockOnline();
-
-    //void UploadChanges(ModeOfflineSincronize ModeOfflineSincronize);
-
-    void sincronizeSales(List<ModeOfflineSM> ModeOfflineSMS, List<DebPayedRequest> debtsPayedRequest, List<DevolutionRequestServer> devolutionRequestServers,String sellerId);
+    void checkCommunicationToServer();
+    void sincronizeSales(List<ModeOfflineSM> ModeOfflineSMS, List<DebPayedRequest> debtsPayedRequest, List<DevolutionRequestServer> devolutionRequestServers,List<String> foliosWithoutPayment,String sellerId);
+    void sendEndDayRecord(String date,String uid);
+    void getAddressByCoordenates(Double latitude,Double longitude);
 }

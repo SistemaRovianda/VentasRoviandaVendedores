@@ -5,11 +5,20 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.lifecycle.ViewModelProvider;
+
+import androidx.navigation.NavDeepLinkBuilder;
 import androidx.room.Room;
+import androidx.work.BackoffPolicy;
+import androidx.work.ExistingPeriodicWorkPolicy;
+import androidx.work.OneTimeWorkRequest;
+import androidx.work.PeriodicWorkRequest;
+import androidx.work.WorkManager;
+import androidx.work.WorkRequest;
 
 import android.Manifest;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
@@ -21,11 +30,13 @@ import android.view.KeyEvent;
 import android.widget.Toast;
 
 import com.example.ventasrovianda.Utils.Models.ModeOfflineModel;
+import com.example.ventasrovianda.Utils.SincronizationWorker;
 import com.example.ventasrovianda.Utils.ViewModelStore;
 import com.example.ventasrovianda.Utils.bd.AppDatabase;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -34,24 +45,27 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-        if (android.os.Build.VERSION.SDK_INT > 9)
-        {
-            StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
-            StrictMode.setThreadPolicy(policy);
-        }
-        this.appDatabase = Room.databaseBuilder(getApplicationContext(),AppDatabase.class,"rovisapi").build();
 
-        ViewModelStore model = new ViewModelProvider(this).get(ViewModelStore.class);
-        ModeOfflineModel modeOfflineModel = new ModeOfflineModel();
-        modeOfflineModel.setUsername("Usuario de prueba");
-        model.setAppDatabase(this.appDatabase);
-        model.saveStore(modeOfflineModel);
-        checkPermission(
-                Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                101);
-        //deleteAllSales();
-        createNotificationChannel();
+            setContentView(R.layout.activity_main);
+            if (android.os.Build.VERSION.SDK_INT > 9) {
+                StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
+                StrictMode.setThreadPolicy(policy);
+            }
+            this.appDatabase = Room.databaseBuilder(getApplicationContext(), AppDatabase.class, "rovisapi").build();
+            ViewModelStore model = new ViewModelProvider(this).get(ViewModelStore.class);
+            ModeOfflineModel modeOfflineModel = new ModeOfflineModel();
+            modeOfflineModel.setUsername("Usuario de prueba");
+            model.saveStore(modeOfflineModel);
+            checkPermission();
+            ActivityCompat.requestPermissions(this,new String[]{}, 1);
+            createNotificationChannel();
+        PeriodicWorkRequest synchronizationRovianda =
+                new PeriodicWorkRequest.Builder(SincronizationWorker.class,PeriodicWorkRequest.MIN_PERIODIC_INTERVAL_MILLIS, TimeUnit.MILLISECONDS,PeriodicWorkRequest.MIN_PERIODIC_FLEX_MILLIS,TimeUnit.MILLISECONDS)
+                        .setBackoffCriteria(BackoffPolicy.LINEAR,PeriodicWorkRequest.MIN_BACKOFF_MILLIS,TimeUnit.MILLISECONDS)
+                        .build();
+        WorkManager.getInstance(getApplicationContext()).enqueueUniquePeriodicWork("roviSync", ExistingPeriodicWorkPolicy.KEEP,synchronizationRovianda);
+
+
     }
     ExecutorService executor = Executors.newSingleThreadExecutor();
     Handler handler = new Handler(Looper.getMainLooper());
@@ -86,19 +100,11 @@ public class MainActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
     }
 
-    public void checkPermission(String permission, int requestCode)
+    public void checkPermission()
     {
-        if (ContextCompat.checkSelfPermission(MainActivity.this, permission)
-                == PackageManager.PERMISSION_DENIED) {
-
-            // Requesting the permission
             ActivityCompat.requestPermissions(MainActivity.this,
-                    new String[] { permission },
-                    requestCode);
-        }
-        else {
-
-        }
+                    new String[] { Manifest.permission.BLUETOOTH_CONNECT,Manifest.permission.BLUETOOTH_SCAN,Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.WRITE_EXTERNAL_STORAGE },
+                    101);
     }
 
     @Override
@@ -110,11 +116,10 @@ public class MainActivity extends AppCompatActivity {
         if (requestCode == 101) {
             if (grantResults.length > 0
                     && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-
             }
             else {
                 Toast.makeText(MainActivity.this,
-                        "Permiso de almacenamiento denegado",
+                        "Permisos denegados",
                         Toast.LENGTH_SHORT)
                         .show();
             }

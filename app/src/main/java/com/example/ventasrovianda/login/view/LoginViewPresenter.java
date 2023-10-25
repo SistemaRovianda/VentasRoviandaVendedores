@@ -8,4 +8,9 @@ public interface LoginViewPresenter {
 
     void setEmailInputError(String msg);
     void setPasswordInputError(String msg);
+    String getEmailInputText();
+    String getPasswordText();
+    void setStatusLogin(Boolean isLoading);
+    void disableButtonLogin(Boolean disable);
+    void setStatusConnectionServer(Boolean statusConnectionServer);
 }
